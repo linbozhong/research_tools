@@ -1,0 +1,6 @@
+{
+    "CFE": ["IF", "IH", "IC", "TF", "T"],
+    "CZC": ["SR", "CF", "CY", "ZC", "FG", "TA", "MA", "WH", "RI", "LR", "JR", "RS", "OI", "RM", "SF", "SM", "AP"],
+    "SHF": ["cu", "al", "zn", "pb", "ni", "sn", "au", "ag", "rb", "hc", "fu", "bu", "ru"],
+    "DCE": ["m", "y", "a", "b", "p", "c", "cs", "jd", "bb", "fb", "l", "v", "pp", "j", "jm", "i"]
+}
