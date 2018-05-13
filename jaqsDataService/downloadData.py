@@ -1,24 +1,36 @@
 # coding:utf-8
 
-from jaqsDataService import DataDownloader
+from datetime import datetime
+from jaqsDataService import JaqsDataDownloader
+
+
+def syncMethod(downloader, tradingDays, symbols):
+    start = datetime.now()
+    settings = [(symbol, date) for date in tradingDays for symbol in symbols]
+    for setting in settings:
+        downloader.saveToDb(symbol=setting[0], trade_date=setting[1])
+    print(u'普通同步方式任务完成，耗时%s秒' % (datetime.now() - start).seconds)
 
 
 def main():
-    dl = DataDownloader()
-    # 连接jaqs的api
+    dl = JaqsDataDownloader()
     dl.loginJaqsApp()
-    # 连接数据库
     dl.connectDb()
 
-    # 批量下载当前交易日数据
-    # dl.downloadAllData()
+    # 获取交易日历
+    tradingDays = dl.getTradingday('20180415')
+    func = lambda dateStr: '%s-%s-%s' % (dateStr[0:4], dateStr[4:6], dateStr[6:8])  # 把20180401转成2018-04-01格式
+    tradingDays = [func(date) for date in tradingDays]
 
-    # 指定要批量下载的合约
-    dl.setSymbols(['m1809', 'y1805'])
-    dl.downloadAllData()
+    # 盘中获取，去掉当前交易日
+    tradingDays = tradingDays[:-1]
 
-    # 下载指定日期的合约
-    dl.downloadAllData(trade_date='2018-03-20')
+    # 要下载的合约代码
+    symbols = ['rb1810', 'm1809', 'TA809']
+
+    # 同步方式下载
+    syncMethod(dl, tradingDays, symbols)
+
 
 if __name__ == '__main__':
     main()
