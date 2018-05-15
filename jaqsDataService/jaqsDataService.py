@@ -5,6 +5,7 @@ import codecs
 import re
 import traceback
 import time
+import pandas as pd
 from datetime import datetime
 from pymongo import MongoClient, ASCENDING
 
@@ -89,8 +90,11 @@ class JaqsDataDownloader(object):
         self.symbols = symbolsList
 
     def getData(self, symbol, *args, **kwargs):
-        # 调用jaqs的api，如果传入错误的参数，会发生阻塞或异常，如果出错，可以检查传入参数是否正确。
-        # **kwargs支持的参数可以在官网查询jaqs的api文档，最常用的是trade_date，可以支持自定义要下载的交易日。
+        """
+        调用jaqs的api，如果传入错误的参数，会发生阻塞或异常，如果出错，可以检查传入参数是否正确。
+        **kwargs支持的参数可以在官网查询jaqs的api文档，最常用的是trade_date，可以支持自定义要下载的交易日。
+        """
+
 
         symbol = self._symbolConvert(symbol)
         df, msg = self.api.bar(symbol=symbol, freq="1M", *args, **kwargs)
@@ -104,12 +108,28 @@ class JaqsDataDownloader(object):
         df, msg = self.api.query(view='jz.secTradeCal', filter=filter)
         return df['trade_date'].values
 
+    def getExistedDay(self, symbol):
+        # 查找数据库已经存在的数据的日期，避免重复下载
+
+        col = self.db[symbol]
+        docs = list(col.find({}, {'datetime': True, '_id': False}).sort('datetime', ASCENDING))
+        dateList = [doc['datetime'].strftime('%Y-%m-%d') for doc in docs]
+        # print set(dateList)
+        return set(dateList)
+
     def saveToDb(self, symbol, *args, **kwargs):
         # 将单一合约分钟线数据存入数据库。默认当前交易日，可通过trade_date='2018-02-03'指定交易日。
 
+        if 'trade_date' in kwargs:
+            qryDate = kwargs['trade_date']
+            existedDate = self.getExistedDay(symbol)
+            if qryDate in existedDate:
+                print(u'数据库已存在该日期数据，忽略')
+                return
+
         data = self.getData(symbol, *args, **kwargs)
         if data.empty:
-            print (u'无数据！')
+            print (u'无数据！请检查日期是否为节假日。')
             return
 
         col = self.db[symbol]
@@ -172,6 +192,8 @@ if __name__ == '__main__':
     dl.loginJaqsApp()
     dl.connectDb()
 
+    # dl.getExistedDay('rb1810')
+
     # 测试数据api
     # df = dl.getData('rb1810', trade_date='2018-05-09')
     # df = dl.getData('rb1810', trade_date='2018-05-10')
@@ -183,9 +205,9 @@ if __name__ == '__main__':
     # 下载单一合约当日分钟数据并存入数据库
     # dl.saveToDb('rb1810')
     # dl.saveToDb('AP810')
-    dl.saveToDb('MA809')
+    # dl.saveToDb('MA809')
 
-    # dl.saveToDb('AP810', trade_date='2018-05-10')
+    dl.saveToDb('rb1810', trade_date='2018-04-19')
 
     # 批量下载当前交易日数据
     # dl.downloadAllData()
