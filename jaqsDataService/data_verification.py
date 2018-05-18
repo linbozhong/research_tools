@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from copy import copy
 
 
-
 class Validator(object):
     """
     数据校验器，用于对比两套数据的差异。
@@ -32,6 +31,9 @@ class Validator(object):
         self.dbComp = self.mongoClient[self.dbNameComp]
 
     def loadData(self, dbName, symbol, startDate, endDate):
+        """
+        从数据库读取数据，并去掉不需要对比的项目
+        """
         db = self.mongoClient[dbName]
         col = db[symbol]
 
@@ -45,6 +47,10 @@ class Validator(object):
         return pd.DataFrame(data)[compareItems]
 
     def mergeData(self, symbol, startDate, endDate):
+        """
+        合并两套数据到一个df，以便做对比。
+        """
+
         # 备用数据库的合约代码命名格式可能不一样，比如rb1810和SHFE.rb1810，先检索备用数据库是否有同合约的数据。
         colNames = self.mongoClient[self.dbNameComp].collection_names()
         symbolCom = None
@@ -63,6 +69,9 @@ class Validator(object):
         return df
 
     def compareData(self, df):
+        """
+        数据对比：筛选OHLC任一项含有不同值的记录，做相减对比，再进行统计
+        """
         # 筛选出OHCL存在不同值的记录
         mask = ((df.high_l == df.high_comp) &
                 (df.low_l == df.low_comp) &
@@ -77,9 +86,12 @@ class Validator(object):
         result = {}
         print(u"\t统计结果:\n %s" % ('=' * 50))
         for item in items:
+            # 数据相减并生成结果列
             newItem = item + '_diff'
             diff_items.append(newItem)
             df[newItem] = df[item + '_l'] - df[item + '_comp']
+
+            # 对结果列进行统计
             result[newItem + '_count'] = df[newItem][df[newItem] != 0].count()
             result[newItem + '_std'] = df[newItem].std()
             result[newItem + '_mean'] = df[newItem].mean()
@@ -87,10 +99,11 @@ class Validator(object):
                                                        result[newItem + '_count'],
                                                        result[newItem + '_mean'],
                                                        result[newItem + '_std']))
-
+        # 对比表格保存到csv文件
         if not os.path.exists('./data/'):
             os.mkdir('./data/')
-        df.to_csv('./data/%s_diff.csv' % df['symbol_l'].values[0])
+        filename = df['symbol_l'].values[0]
+        df.to_csv('./data/%s_diff.csv' % filename)
 
     def setDbName(self, dbName, dbNameComp):
         self.dbName = dbName

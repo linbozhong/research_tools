@@ -5,7 +5,6 @@ import codecs
 import re
 import traceback
 import time
-import pandas as pd
 from datetime import datetime
 from pymongo import MongoClient, ASCENDING
 
@@ -35,20 +34,27 @@ class JaqsDataDownloader(object):
         self._loadContracts()
 
     def _loadSetting(self):
-        # 默认载入json文件的合约列表
+        """
+        默认载入json文件的合约列表
+        """
+
         with codecs.open('config.json', 'r', 'utf-8') as f:
             self.setting = json.load(f)
             self.symbols = self.setting['SYMBOLS']
 
     def _loadContracts(self):
-        # jaqs的数据api合约代码是基础代码加上jaqs设置的市场编号，如'cu1805.SHF'。
-        # 将合约与市场的映射关系保存在json文件上，有新合约上市可以在json文件上修改 。
+        """
+        jaqs的数据api合约代码是基础代码加上jaqs设置的市场编号，如'cu1805.SHF'。
+        将合约与市场的映射关系保存在json文件上，有新合约上市可以在json文件上修改 。
+        """
 
         with codecs.open('contract.json', 'r', 'utf-8') as f:
             self.contractDict = json.load(f)
 
     def _symbolConvert(self, symbol):
-        # 合约代码转换方法。
+        """
+        合约代码转换方法。
+        """
 
         symbolAlphabet = re.match(r'^([A-Z]|[a-z])+', symbol).group()
         for market, symbols in self.contractDict.items():
@@ -57,7 +63,9 @@ class JaqsDataDownloader(object):
         print(u'%s-目前期货交易所无此合约.' % symbol)
 
     def _generateVtBar(self, symbol, data):
-        # 生成vtBar（vnpy的bar类）
+        """
+        生成vtBar（vnpy的bar类对象）
+        """
 
         bar = VtBarData()
         bar.symbol = symbol
@@ -75,18 +83,24 @@ class JaqsDataDownloader(object):
         return bar
 
     def loginJaqsApp(self):
+        """
         # 登录jaqs的api。需要账号和token，可在官网上注册。
+        """
         print(u'正在登陆JaqsAPI.')
         self.api = DataApi(addr=self.setting['ADDR'])
         self.api.login(self.setting['PHONE'], self.setting['TOKEN'])
 
     def connectDb(self):
-        # 连接数据库。
+        """
+        连接数据库。
+        """
         self.dbClient = MongoClient(self.setting['MONGO_HOST'], self.setting['MONGO_PORT'])
         self.db = self.dbClient[MINUTE_DB_NAME]
 
     def setSymbols(self, symbolsList):
-        # 另外设置要批量下载的合约列表
+        """
+        设置要批量下载的合约列表，可以覆盖配置文件合约代码的设置
+        """
         self.symbols = symbolsList
 
     def getData(self, symbol, *args, **kwargs):
@@ -95,13 +109,15 @@ class JaqsDataDownloader(object):
         **kwargs支持的参数可以在官网查询jaqs的api文档，最常用的是trade_date，可以支持自定义要下载的交易日。
         """
 
-
         symbol = self._symbolConvert(symbol)
         df, msg = self.api.bar(symbol=symbol, freq="1M", *args, **kwargs)
         return df
 
     def getTradingday(self, startDate, endDate=None):
-        # 调用jaqs的API，获取交易日，格式是%Y%m%d
+        """
+        调用jaqs的API，获取交易日，格式是%Y%m%dDate:
+        """
+
         if not endDate:
             endDate = datetime.now().strftime('%Y%m%d')
         filter = 'start_date=%s&end_date=%s' % (startDate, endDate)
@@ -109,7 +125,9 @@ class JaqsDataDownloader(object):
         return df['trade_date'].values
 
     def getExistedDay(self, symbol):
-        # 查找数据库已经存在的数据的日期，避免重复下载
+        """
+        查找数据库已经存在的数据的日期，避免重复下载
+        """
 
         col = self.db[symbol]
         docs = list(col.find({}, {'datetime': True, '_id': False}).sort('datetime', ASCENDING))
@@ -117,16 +135,21 @@ class JaqsDataDownloader(object):
         # print set(dateList)
         return set(dateList)
 
-    def saveToDb(self, symbol, *args, **kwargs):
-        # 将单一合约分钟线数据存入数据库。默认当前交易日，可通过trade_date='2018-02-03'指定交易日。
-
-        if 'trade_date' in kwargs:
+    def saveToDb(self, symbol, overwrite=True, *args, **kwargs):
+        """
+        将单一合约分钟线数据存入数据库。
+        默认当前交易日，可通过trade_date='2018-02-03'指定交易日。
+        默认覆盖已有数据库资料，overwrite设为False，若数据库存在重复的日期，就忽略下载任务。
+        """
+        # 如果不覆盖并且数据已有该日期的数据则忽略任务
+        if not overwrite and 'trade_date' in kwargs:
             qryDate = kwargs['trade_date']
             existedDate = self.getExistedDay(symbol)
             if qryDate in existedDate:
                 print(u'数据库已存在该日期数据，忽略')
                 return
 
+        # 调用jaqs的api
         data = self.getData(symbol, *args, **kwargs)
         if data.empty:
             print (u'无数据！请检查日期是否为节假日。')
@@ -155,7 +178,10 @@ class JaqsDataDownloader(object):
         print(u'合约%s下载完成。日期区间：%s - %s' % (symbol, dataStart, dataEnd))
 
     def downloadAllData(self, *args, **kwargs):
-        # 批量下载多合约指定日期的分钟数据，默认当前交易日可通过trade_date='2018-02-03'指定交易日。
+        """
+        多合约单日下载：适用于后续每日的数据更新
+        批量下载多合约指定日期的分钟数据，默认当前交易日可通过trade_date='2018-02-03'指定交易日。
+        """
 
         self.taskList.extend(self.symbols)
         print(u'开始下载所有合约分钟线数据，任务列表：')
@@ -188,6 +214,8 @@ class JaqsDataDownloader(object):
 
 if __name__ == '__main__':
     # 测试
+
+    # 创建下载器对象、连接jaqs的api和本地数据库
     dl = JaqsDataDownloader()
     dl.loginJaqsApp()
     dl.connectDb()
@@ -207,7 +235,9 @@ if __name__ == '__main__':
     # dl.saveToDb('AP810')
     # dl.saveToDb('MA809')
 
-    dl.saveToDb('rb1810', trade_date='2018-04-19')
+    # dl.saveToDb('rb1810', trade_date='2018-04-13')
+    # dl.saveToDb('rb1810', trade_date='2018-04-13', overwrite=False)
+    # dl.saveToDb('rb1801', trade_date='2017-09-12')
 
     # 批量下载当前交易日数据
     # dl.downloadAllData()
