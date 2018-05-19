@@ -4,32 +4,43 @@ from datetime import datetime
 from jaqsDataService import JaqsDataDownloader
 
 
-def syncMethod(downloader, tradingDays, symbols):
-    start = datetime.now()
+# 下载主力连续合约数据
+def downloadMainContract(downloader, mainContractSymbol, startDate, endDate=None):
+    settings = downloader.getMainContract(mainContractSymbol, startDate, endDate)
+    for setting in settings:
+        downloader.saveToDb(setting[0], trade_date=setting[1])
+
+
+# 下载多合约数据
+def downloadMultiContract(downloader, symbols, startDate, endDate=None):
+    # 获取交易日历
+    tradingDays = downloader.getTradingday(startDate, endDate)
+
+    # 下载数据
     settings = [(symbol, date) for date in tradingDays for symbol in symbols]
     for setting in settings:
         downloader.saveToDb(symbol=setting[0], trade_date=setting[1])
-    print(u'普通同步方式任务完成，耗时%s秒' % (datetime.now() - start).seconds)
 
 
 def main():
+    start = datetime.now()
+
+    # 设置任务
+    startDate = '2015-01-01'
+    endDate = None
+    symbols = ['rb1810', 'm1809', 'TA809']
+    mainContractSymbol = 'rb'
+
+    # 创建下载器
     dl = JaqsDataDownloader()
     dl.loginJaqsApp()
     dl.connectDb()
 
-    # 获取交易日历
-    tradingDays = dl.getTradingday('20180415')
-    func = lambda dateStr: '%s-%s-%s' % (dateStr[0:4], dateStr[4:6], dateStr[6:8])  # 把20180401转成2018-04-01格式
-    tradingDays = [func(date) for date in tradingDays]
+    # 任务开始
+    # downloadMultiContract(dl, symbols, startDate, endDate)
+    downloadMainContract(dl, mainContractSymbol, startDate, endDate)
 
-    # 盘中获取，去掉当前交易日
-    tradingDays = tradingDays[:-1]
-
-    # 要下载的合约代码
-    symbols = ['rb1810', 'm1809', 'TA809']
-
-    # 同步方式下载
-    syncMethod(dl, tradingDays, symbols)
+    print(u'全部任务完成，耗时%s秒' % (datetime.now() - start).seconds)
 
 
 if __name__ == '__main__':
