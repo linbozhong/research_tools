@@ -100,9 +100,7 @@ def main():
     dl.connectDb()
 
     # 获取交易日历
-    tradingDays = dl.getTradingday('20180415')
-    func = lambda dateStr: '%s-%s-%s' % (dateStr[0:4], dateStr[4:6], dateStr[6:8])  # 把20180401转成2018-04-01格式
-    tradingDays = [func(date) for date in tradingDays]
+    tradingDays = dl.getTradingday('2018-04-15')
     # print tradingDays
 
     # 要下载的合约代码
