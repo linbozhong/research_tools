@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import os
 import pandas as pd
 import copy
+import xlrd
 from constant import *
 from datetime import datetime
-from collections import OrderedDict
 
 columnMap = {
     'account': u'资金账号',
@@ -83,6 +84,9 @@ class TradingResult(object):
 
 class TradeCalculator(object):
     def __init__(self):
+        self.sourcePath = './sourceTrade/'
+        self.sourceFileName = ''
+        self.outputPath = './output/'
         self.rate = 0.0003
         self.slippage = 0
         self.size = 1
@@ -92,8 +96,23 @@ class TradeCalculator(object):
         # 收盘后的时间，用来计算未全部平仓的盈亏
         self.dt = datetime.now()
 
-    def loadTradeData(self, filename):
-        df = pd.read_csv(filename, encoding='gb2312')
+    def loadXlsFile(self, filename):
+        self.sourceFileName = filename
+        data = xlrd.open_workbook(self.sourcePath + filename)
+        table = data.sheets()[0]
+        records = [table.row_values(i) for i in range(table.nrows)]
+        df = pd.DataFrame(records[1:], columns=records[0])
+        # print df
+        return df
+
+    def loadCsvFile(self, filename):
+        self.sourceFileName = filename
+        filePath = self.sourcePath + filename
+        df = pd.read_csv(filePath, encoding='gb2312')
+        # print df
+        return df
+
+    def generateTradeData(self, df):
         columns = df.columns.values
 
         for tradeIndex in range(len(df)):
@@ -108,7 +127,9 @@ class TradeCalculator(object):
             # 成交数量若按成交反向设为正负数，在后面的计算会产生bug，或者计算的时候需要abs（）全部转为正数
             # if tradeInfo['direction'] == DIRECTION_SHORT:
             #     tradeInfo['volume'] = - tradeInfo['volume']
-            tradeInfo['symbol'] = '%06d' % tradeInfo['symbol']
+            if isinstance(tradeInfo['symbol'], int):
+                tradeInfo['symbol'] = '%06d' % tradeInfo['symbol']
+
             tradeInfo['dt'] = datetime.strptime(tradeInfo['tradeTime'], '%Y-%m-%d %H:%M:%S')
 
             trade.__dict__ = tradeInfo
@@ -230,13 +251,15 @@ class TradeCalculator(object):
 
         outputList = []
         for result in self.allResultDict[symbol]:
-            resultDict = OrderedDict()
+            resultDict = dict()
             for item in exportItem:
                 resultDict[item] = result[item]
-            print resultDict
+            # print resultDict
             outputList.append(resultDict)
+            # print outputList
 
         outputDf = pd.DataFrame(outputList)
+        outputDf = outputDf[exportItem]  # 变更df顺序
         outputDf.columns = exportItemZh
         return outputDf
         # outputDf.to_csv('test_out.csv', encoding='utf-8', index=False)
@@ -248,18 +271,30 @@ class TradeCalculator(object):
             newDf = self.saveTradeResult(symbol)
             initDf = pd.concat([initDf, newDf])
         # print initDf
-        initDf.to_csv('test_out.csv', encoding='utf-8', index=False)
+        if not os.path.exists(self.outputPath):
+            os.mkdir(self.outputPath[:-1])
+
+        filenameList = self.sourceFileName.split('.')
+        self.sourceFileName = filenameList[0] + '.csv'
+        # print(self.sourceFileName)
+
+        outPath = self.outputPath + self.sourceFileName
+        # print outPath
+        initDf.to_csv(outPath, encoding='gb2312', index=False)
+
 
 if __name__ == '__main__':
     # for k, v in titleMapReverse.items():
     #     print k, v
 
     calculator = TradeCalculator()
-    calculator.loadTradeData('20180523_20041.csv')
+    # df = calculator.loadCsvFile('20180524_20041.csv')
+    tradeDf = calculator.loadXlsFile('20180523_20041.xls')
+
+    calculator.generateTradeData(tradeDf)
 
     # symbols = calculator.allTradeDict.keys()
 
     # calculator.calculateTradeResult(symbols[0])
     # calculator.saveTradeResult()
     calculator.mergeAllResult()
-
