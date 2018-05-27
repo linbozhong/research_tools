@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import copy
 import os
 import pandas as pd
-import copy
+import tushare as ts
 import xlrd
+import pymongo
+import matplotlib.pyplot as plt
+import seaborn as sns
 from constant import *
 from datetime import datetime
 
@@ -70,8 +74,11 @@ class TradingResult(object):
 
         self.volume = volume  # 正数表示入场是多单
 
+        if self.volume > 0:
+            self.stampTax = exitPrice * abs(volume) * size * STAMP_TAX_RATE
+        else:
+            self.stampTax = entryPrice * abs(volume) * size * STAMP_TAX_RATE
         self.turnOver = (self.entryPrice + self.exitPrice) * abs(volume) * size
-        self.stampTax = self.turnOver * STAMP_TAX_RATE
         self.commission = self.turnOver * rate
         self.transferFee = self.turnOver * TRANSFER_FEE
         self.slippage = slippage * 2 * size * abs(volume)
@@ -82,11 +89,109 @@ class TradingResult(object):
         return self.__dict__.get(key, None)
 
 
+class TradePointer(object):
+    def __init__(self, symbol, date):
+        self.symbol = symbol
+        self.symbolName = ''
+        self.date = date
+        self.tickData = None
+
+        self.dbName = 'Ts_tick_Db'
+        self.collectionName = 'stock_%s' % self.symbol
+        self.dbClient = None
+
+        self.displayTimeLabel = ['09:30', '10:00', '10:30', '11:00', '13:00',
+                                 '13:30', '14:00', '14:30', '15:00']
+        self.displayIndex = []
+
+        self.buyTimeIndex = []
+        self.sellTimeIndex = []
+        self.buyPrice = []
+        self.sellPrice = []
+
+    def connectDb(self, host=None, port=None, dbName=None):
+        if not dbName:
+            dbName = self.dbName
+        self.dbClient = pymongo.MongoClient(host=host, port=port)
+        db = self.dbClient[dbName]
+        return db
+
+    def getTickData(self):
+        df = None
+        db = self.connectDb()
+
+        flt = {'date': self.date}
+        result = db[self.collectionName].find_one(flt)
+        if not result:
+            print(u'数据库无数据，正在尝试从tushare获取数据..')
+            cons = ts.get_apis()
+            df = ts.tick(self.symbol, conn=cons, date=self.date)
+            if df is not None:
+                df['date'] = self.date
+                db[self.collectionName].insert_many(df.to_dict('records'))
+                print(u'成功获取并写入数据库。')
+            else:
+                print(u'获取数据出错，可能接口问题，或者日期设置不正确。')
+        else:
+            print(u'数据库有匹配数据')
+            data = list(db[self.collectionName].find(flt, projection={'_id': False}))
+            df = pd.DataFrame(data)
+            # print df
+
+        if df is not None:
+            df.drop_duplicates('datetime', keep='last', inplace=True)
+            df.reset_index(inplace=True, drop=True)
+            df.datetime = df.datetime.map(lambda dateStr: dateStr[-5:])
+            self.tickData = df
+            # print df
+
+    def getTradeData(self, tradeDataList):
+        dtList = list(self.tickData.datetime.values)
+        self.symbolName = tradeDataList[0].name
+        for trade in tradeDataList:
+            if trade.direction == DIRECTION_LONG:
+                tradeTime = trade.dt.strftime('%H:%M')
+                self.buyTimeIndex.append(dtList.index(tradeTime))
+                self.buyPrice.append(trade.price)
+            elif trade.direction == DIRECTION_SHORT:
+                tradeTime = trade.dt.strftime('%H:%M')
+                self.sellTimeIndex.append(dtList.index(tradeTime))
+                self.sellPrice.append(trade.price)
+
+    def display(self, filePath):
+        sns.set_style('whitegrid')
+        plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文
+        plt.rcParams['axes.unicode_minus'] = False  # 显示负号
+
+        prices = self.tickData.price
+
+        dtList = list(self.tickData.datetime.values)
+        self.displayIndex = [dtList.index(time) for time in self.displayTimeLabel]
+
+        fig = plt.figure(figsize=(20, 8))
+        ax = fig.add_subplot(1, 1, 1)
+
+        ax.set_xticks(self.displayIndex)
+        ax.set_xticklabels(self.displayTimeLabel)
+
+        ax.plot(prices, label=u'分时价格')
+        ax.scatter(self.buyTimeIndex, self.buyPrice, s=80, c='r', marker='^')
+        ax.scatter(self.sellTimeIndex, self.sellPrice, s=80, c='g', marker='v')
+
+        ax.set_title(self.symbol + self.symbolName)
+        ax.legend(loc='best')
+
+        # plt.show()
+        plt.savefig(filePath, bbox_inches='tight')
+
+
 class TradeCalculator(object):
-    def __init__(self):
-        self.sourcePath = './sourceTrade/'
-        self.sourceFileName = ''
-        self.outputPath = './output/'
+    def __init__(self, sourceFileName):
+        self.sourceFolder = 'source'
+        self.outputFolder = 'output'
+        self.imageFolder = 'image'
+        self.sourceFileName = sourceFileName
+
         self.rate = 0.0003
         self.slippage = 0
         self.size = 1
@@ -96,19 +201,31 @@ class TradeCalculator(object):
         # 收盘后的时间，用来计算未全部平仓的盈亏
         self.dt = datetime.now()
 
-    def loadXlsFile(self, filename):
-        self.sourceFileName = filename
-        data = xlrd.open_workbook(self.sourcePath + filename)
+        self.createFolders()
+
+    def createFolders(self):
+        if not os.path.exists(self.outputFolder):
+            os.mkdir(self.outputFolder)
+        if not os.path.exists(self.imageFolder):
+            os.mkdir(self.imageFolder)
+
+    def loadXlsFile(self, filename=None):
+        if not filename:
+            filename = self.sourceFileName
+
+        sourceFile = '%s/%s' % (self.sourceFolder, filename)
+        data = xlrd.open_workbook(sourceFile)
         table = data.sheets()[0]
         records = [table.row_values(i) for i in range(table.nrows)]
         df = pd.DataFrame(records[1:], columns=records[0])
         # print df
         return df
 
-    def loadCsvFile(self, filename):
-        self.sourceFileName = filename
-        filePath = self.sourcePath + filename
-        df = pd.read_csv(filePath, encoding='gb2312')
+    def loadCsvFile(self, filename=None):
+        if not filename:
+            filename = self.sourceFileName
+        sourceFile = '%s/%s' % (self.sourceFolder, filename)
+        df = pd.read_csv(sourceFile, encoding='gb2312')
         # print df
         return df
 
@@ -244,7 +361,7 @@ class TradeCalculator(object):
         #     print result.__dict__
         self.allResultDict[symbol] = resultList
 
-    def saveTradeResult(self, symbol):
+    def generateSingleResult(self, symbol):
         exportItem = ['symbol', 'name', 'entryDt', 'entryPrice', 'exitDt', 'exitPrice', 'volume',
                       'turnOver', 'stampTax', 'commission', 'transferFee', 'pnl']
         exportItemZh = [columnMap[item] for item in exportItem]
@@ -264,37 +381,61 @@ class TradeCalculator(object):
         return outputDf
         # outputDf.to_csv('test_out.csv', encoding='utf-8', index=False)
 
-    def mergeAllResult(self):
+    def generateAllResult(self):
         initDf = pd.DataFrame()
         for symbol in self.allTradeDict.keys():
             self.calculateTradeResult(symbol)
-            newDf = self.saveTradeResult(symbol)
+            newDf = self.generateSingleResult(symbol)
             initDf = pd.concat([initDf, newDf])
         # print initDf
-        if not os.path.exists(self.outputPath):
-            os.mkdir(self.outputPath[:-1])
 
         filenameList = self.sourceFileName.split('.')
         self.sourceFileName = filenameList[0] + '.csv'
         # print(self.sourceFileName)
 
-        outPath = self.outputPath + self.sourceFileName
+        outPath = self.outputFolder + '/' + self.sourceFileName
         # print outPath
         initDf.to_csv(outPath, encoding='gb2312', index=False)
 
+    def generateTradePointImage(self):
+        for symbol in self.allTradeDict.keys():
+            trades = self.allTradeDict[symbol]
+            date = trades[0].dt.strftime('%Y-%m-%d')
 
-if __name__ == '__main__':
-    # for k, v in titleMapReverse.items():
-    #     print k, v
+            tradePointer = TradePointer(symbol, date)
+            tradePointer.getTickData()
+            tradePointer.getTradeData(trades)
 
-    calculator = TradeCalculator()
-    # df = calculator.loadCsvFile('20180524_20041.csv')
-    tradeDf = calculator.loadXlsFile('20180523_20041.xls')
+            filePath = '%s/%s_%s' % (self.imageFolder, date, symbol)
+            tradePointer.display(filePath)
 
-    calculator.generateTradeData(tradeDf)
+# def t_tradeCalculator(filename):
+#     calculator = TradeCalculator()
+#     # df = calculator.loadCsvFile('20180524_20041.csv')
+#     tradeDf = calculator.loadXlsFile(filename)
+#
+#     calculator.generateTradeData(tradeDf)
+#
+#     # symbols = calculator.allTradeDict.keys()
+#
+#     # calculator.calculateTradeResult(symbols[0])
+#     # calculator.saveTradeResult()
+#     calculator.generateAllResult()
+#
+#
+# def t_tradePointer():
+#     calculator = TradeCalculator()
+#     tradeDf = calculator.loadXlsFile('20180525_20041.xls')
+#     calculator.generateTradeData(tradeDf)
+#     tradeData = calculator.allTradeDict['000571']
+#
+#     pointer = TradePointer('000571', '2018-05-25')
+#     pointer.getTickData()
+#     pointer.getTradeData(tradeData)
+#     pointer.display()
 
-    # symbols = calculator.allTradeDict.keys()
 
-    # calculator.calculateTradeResult(symbols[0])
-    # calculator.saveTradeResult()
-    calculator.mergeAllResult()
+# if __name__ == '__main__':
+    # t_tradePointer()
+
+    # t_tradeCalculator('20180525_20041.xls')
