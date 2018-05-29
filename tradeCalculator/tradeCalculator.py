@@ -100,14 +100,22 @@ class TradePointer(object):
         self.collectionName = 'stock_%s' % self.symbol
         self.dbClient = None
 
+        # x轴index和时间标签的映射
         self.displayTimeLabel = ['09:30', '10:00', '10:30', '11:00', '13:00',
                                  '13:30', '14:00', '14:30', '15:00']
         self.displayIndex = []
 
+        # 成交时间序列和成交价格序列
         self.buyTimeIndex = []
         self.sellTimeIndex = []
         self.buyPrice = []
         self.sellPrice = []
+
+    def setDbName(self, dbName):
+        self.dbName = dbName
+
+    def setCollectionName(self, colName):
+        self.collectionName = colName
 
     def connectDb(self, host=None, port=None, dbName=None):
         if not dbName:
@@ -117,6 +125,9 @@ class TradePointer(object):
         return db
 
     def getTickData(self):
+        """
+        通过tushare获取分时数据，并存入数据库，避免后面运行重复获取。
+        """
         df = None
         db = self.connectDb()
 
@@ -136,16 +147,18 @@ class TradePointer(object):
             print(u'数据库有匹配数据')
             data = list(db[self.collectionName].find(flt, projection={'_id': False}))
             df = pd.DataFrame(data)
-            # print df
 
         if df is not None:
             df.drop_duplicates('datetime', keep='last', inplace=True)
             df.reset_index(inplace=True, drop=True)
             df.datetime = df.datetime.map(lambda dateStr: dateStr[-5:])
             self.tickData = df
-            # print df
+            return df
 
     def getTradeData(self, tradeDataList):
+        """
+        从tradeData对象列表中获取成交信息（时间、方向和价格）
+        """
         dtList = list(self.tickData.datetime.values)
         self.symbolName = tradeDataList[0].name
         for trade in tradeDataList:
@@ -166,7 +179,10 @@ class TradePointer(object):
         prices = self.tickData.price
 
         dtList = list(self.tickData.datetime.values)
-        self.displayIndex = [dtList.index(time) for time in self.displayTimeLabel]
+        try:
+            self.displayIndex = [dtList.index(time) for time in self.displayTimeLabel]
+        except ValueError:
+            print(u'找不到要显示的时间点对应的数据，数据可能不完整！')
 
         fig = plt.figure(figsize=(20, 8))
         ax = fig.add_subplot(1, 1, 1)
@@ -201,7 +217,17 @@ class TradeCalculator(object):
         # 收盘后的时间，用来计算未全部平仓的盈亏
         self.dt = datetime.now()
 
-        self.createFolders()
+    def setSourceFolder(self, folderName):
+        self.sourceFolder = folderName
+
+    def setOutputFolder(self, folderName):
+        self.outputFolder = folderName
+
+    def setImageFolder(self, folderName):
+        self.imageFolder = folderName
+
+    def setSourceFileName(self, fileName):
+        self.sourceFileName = fileName
 
     def createFolders(self):
         if not os.path.exists(self.outputFolder):
@@ -210,6 +236,9 @@ class TradeCalculator(object):
             os.mkdir(self.imageFolder)
 
     def loadXlsFile(self, filename=None):
+        """
+        把xls表格文件转化为DataFrame对象
+        """
         if not filename:
             filename = self.sourceFileName
 
@@ -218,7 +247,6 @@ class TradeCalculator(object):
         table = data.sheets()[0]
         records = [table.row_values(i) for i in range(table.nrows)]
         df = pd.DataFrame(records[1:], columns=records[0])
-        # print df
         return df
 
     def loadCsvFile(self, filename=None):
@@ -230,20 +258,22 @@ class TradeCalculator(object):
         return df
 
     def generateTradeData(self, df):
+        """
+        生成tradeData对象，并以股票代码分组，存入allTradeDict
+        """
+
+        # 获取中文列名
         columns = df.columns.values
 
         for tradeIndex in range(len(df)):
-            tradeValue = df.iloc[tradeIndex]  # 获取每条成交记录，series格式
+            tradeSeries = df.iloc[tradeIndex]  # 获取每条成交记录，series格式
 
             trade = TradeData()
             tradeInfo = dict()
             for column_zh in columns:
                 column_en = columnMapReverse[column_zh]
-                tradeInfo[column_en] = tradeValue[column_zh]
+                tradeInfo[column_en] = tradeSeries[column_zh]
 
-            # 成交数量若按成交反向设为正负数，在后面的计算会产生bug，或者计算的时候需要abs（）全部转为正数
-            # if tradeInfo['direction'] == DIRECTION_SHORT:
-            #     tradeInfo['volume'] = - tradeInfo['volume']
             if isinstance(tradeInfo['symbol'], int):
                 tradeInfo['symbol'] = '%06d' % tradeInfo['symbol']
 
@@ -255,21 +285,16 @@ class TradeCalculator(object):
             symbol = tradeInfo['symbol']
             self.allTradeDict.setdefault(symbol, []).append(trade)
 
-            # print self.allTradeDict
-            # tradeList = self.allTradeDict.values()
-            # testList = [trade.__dict__ for trade in tradeList[1]]
-            # testDf = pd.DataFrame(testList)
-            # testDf.to_csv('test1.csv', encoding='utf-8', index=False)
-
     def calculateTradeResult(self, symbol):
+        """
+        通过tradeData对象计算交易盈亏（计算方法来自vnpy），并以股票代码分组存入allResultDict
+        """
         longTrade = []
         shortTrade = []
         tradeTimeList = []
         resultList = []
 
         for trade in self.allTradeDict[symbol]:
-            # print 'before calculate:'
-            # print trade.__dict__
             trade = copy.copy(trade)
 
             # 多头交易
@@ -357,11 +382,14 @@ class TradeCalculator(object):
                                        -trade.volume, self.rate, self.slippage, self.size)
                 resultList.append(result)
 
-        # for result in resultList:
-        #     print result.__dict__
         self.allResultDict[symbol] = resultList
 
     def generateSingleResult(self, symbol):
+        """
+        把单个股票的tradeResult对象按需要输出的项目转化成DataFrame对象
+        """
+
+        # 可以指定要输出的项及其顺序
         exportItem = ['symbol', 'name', 'entryDt', 'entryPrice', 'exitDt', 'exitPrice', 'volume',
                       'turnOver', 'stampTax', 'commission', 'transferFee', 'pnl']
         exportItemZh = [columnMap[item] for item in exportItem]
@@ -371,33 +399,34 @@ class TradeCalculator(object):
             resultDict = dict()
             for item in exportItem:
                 resultDict[item] = result[item]
-            # print resultDict
             outputList.append(resultDict)
-            # print outputList
 
         outputDf = pd.DataFrame(outputList)
         outputDf = outputDf[exportItem]  # 变更df顺序
-        outputDf.columns = exportItemZh
+        outputDf.columns = exportItemZh  # 列名转化为中文
         return outputDf
         # outputDf.to_csv('test_out.csv', encoding='utf-8', index=False)
 
     def generateAllResult(self):
+        """
+        把多个股票的交易盈亏DataFrame对象合并为一个df，并输出成csv文件
+        """
         initDf = pd.DataFrame()
         for symbol in self.allTradeDict.keys():
             self.calculateTradeResult(symbol)
             newDf = self.generateSingleResult(symbol)
             initDf = pd.concat([initDf, newDf])
-        # print initDf
 
         filenameList = self.sourceFileName.split('.')
         self.sourceFileName = filenameList[0] + '.csv'
-        # print(self.sourceFileName)
 
         outPath = self.outputFolder + '/' + self.sourceFileName
-        # print outPath
         initDf.to_csv(outPath, encoding='gb2312', index=False)
 
     def generateTradePointImage(self):
+        """
+        生成成交记录点位图
+        """
         for symbol in self.allTradeDict.keys():
             trades = self.allTradeDict[symbol]
             date = trades[0].dt.strftime('%Y-%m-%d')
@@ -408,34 +437,3 @@ class TradeCalculator(object):
 
             filePath = '%s/%s_%s' % (self.imageFolder, date, symbol)
             tradePointer.display(filePath)
-
-# def t_tradeCalculator(filename):
-#     calculator = TradeCalculator()
-#     # df = calculator.loadCsvFile('20180524_20041.csv')
-#     tradeDf = calculator.loadXlsFile(filename)
-#
-#     calculator.generateTradeData(tradeDf)
-#
-#     # symbols = calculator.allTradeDict.keys()
-#
-#     # calculator.calculateTradeResult(symbols[0])
-#     # calculator.saveTradeResult()
-#     calculator.generateAllResult()
-#
-#
-# def t_tradePointer():
-#     calculator = TradeCalculator()
-#     tradeDf = calculator.loadXlsFile('20180525_20041.xls')
-#     calculator.generateTradeData(tradeDf)
-#     tradeData = calculator.allTradeDict['000571']
-#
-#     pointer = TradePointer('000571', '2018-05-25')
-#     pointer.getTickData()
-#     pointer.getTradeData(tradeData)
-#     pointer.display()
-
-
-# if __name__ == '__main__':
-    # t_tradePointer()
-
-    # t_tradeCalculator('20180525_20041.xls')

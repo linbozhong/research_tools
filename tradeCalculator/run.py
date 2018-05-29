@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 import sys
-from tradeCalculater import TradeCalculator
+from tradeCalculator import TradeCalculator
 
 
 if __name__ == '__main__':
@@ -12,6 +12,7 @@ if __name__ == '__main__':
     filename = sys.argv[1]
 
     calculator = TradeCalculator(filename)
+    calculator.createFolders()
     df = calculator.loadXlsFile()
     calculator.generateTradeData(df)
     calculator.generateAllResult()
