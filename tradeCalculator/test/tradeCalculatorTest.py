@@ -12,7 +12,8 @@ class TestTradeCalculator(unittest.TestCase):
         pass
 
     def tearDown(self):
-        pass
+        if os.path.exists('image'):
+            os.rmdir('image')
 
     def testCreateFolder(self):
         cal = tradeCalculator.TradeCalculator('testFile')

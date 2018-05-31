@@ -2,14 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="6fb75334-e578-4768-8992-be7b2bacd290" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/.idea/inspectionProfiles/Project_Default.xml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/.idea/misc.xml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/.idea/modules.xml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/.idea/tradeCalculater.iml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/.idea/workspace.xml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/constant.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/run.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/tradeCalculater/tradeCalculater.py" afterPath="" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/tradeCalculator/test/tradeCalculatorTest.py" afterPath="$PROJECT_DIR$/tradeCalculator/test/tradeCalculatorTest.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -23,13 +17,14 @@
       <file leaf-file-name="tradeCalculator.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/tradeCalculator/tradeCalculator.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="220">
+            <state relative-caret-position="-586">
               <caret line="10" column="21" lean-forward="false" selection-start-line="10" selection-start-column="21" selection-end-line="10" selection-end-column="21" />
               <folding>
                 <element signature="e#251#729#0" expanded="false" />
                 <element signature="e#828#871#0" expanded="false" />
                 <element signature="e#903#1297#0" expanded="false" />
                 <element signature="e#1333#2362#0" expanded="false" />
+                <element signature="e#2397#6160#0" expanded="false" />
                 <element signature="e#7188#7588#0" expanded="false" />
                 <element signature="e#7640#7853#0" expanded="false" />
                 <element signature="e#7900#8739#0" expanded="false" />
@@ -38,18 +33,17 @@
                 <element signature="e#12195#12481#0" expanded="false" />
                 <element signature="e#12909#13719#0" expanded="false" />
                 <element signature="e#13762#14290#0" expanded="false" />
-                <element signature="e#14339#14773#0" expanded="false" />
                 <marker date="1527605140571" expanded="false" signature="12505:12806" ph="..." />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="tradeCalculatorTest.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="tradeCalculatorTest.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/tradeCalculator/test/tradeCalculatorTest.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2646">
-              <caret line="126" column="26" lean-forward="true" selection-start-line="126" selection-start-column="26" selection-end-line="126" selection-end-column="26" />
+            <state relative-caret-position="483">
+              <caret line="23" column="26" lean-forward="true" selection-start-line="23" selection-start-column="26" selection-end-line="23" selection-end-column="26" />
               <folding>
                 <element signature="e#41#56#0" expanded="true" />
               </folding>
@@ -57,7 +51,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="run.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="run.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/tradeCalculator/run.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="357">
@@ -86,8 +80,8 @@
         <option value="$PROJECT_DIR$/tradeCalculator/chinese.py" />
         <option value="$PROJECT_DIR$/tradeCalculator/chineseTest.py" />
         <option value="$PROJECT_DIR$/tradeCalculator/test/chineseTest.py" />
-        <option value="$PROJECT_DIR$/tradeCalculator/test/tradeCalculatorTest.py" />
         <option value="$PROJECT_DIR$/tradeCalculator/tradeCalculator.py" />
+        <option value="$PROJECT_DIR$/tradeCalculator/test/tradeCalculatorTest.py" />
       </list>
     </option>
   </component>
@@ -278,12 +272,6 @@
     <servers />
   </component>
   <component name="TestHistory">
-    <history-entry file="Nosetests_in_tradeCalculatorTest_py - 2018.05.29 at 22h 01m 43s.xml">
-      <configuration name="Nosetests in tradeCalculatorTest.py" configurationId="tests" />
-    </history-entry>
-    <history-entry file="Nosetests_in_tradeCalculatorTest_py - 2018.05.29 at 22h 02m 52s.xml">
-      <configuration name="Nosetests in tradeCalculatorTest.py" configurationId="tests" />
-    </history-entry>
     <history-entry file="Nosetests_in_tradeCalculatorTest_py - 2018.05.29 at 22h 21m 05s.xml">
       <configuration name="Nosetests in tradeCalculatorTest.py" configurationId="tests" />
     </history-entry>
@@ -306,6 +294,12 @@
       <configuration name="Nosetests in tradeCalculatorTest.py" configurationId="tests" />
     </history-entry>
     <history-entry file="Nosetests_in_tradeCalculatorTest_py - 2018.05.29 at 22h 42m 17s.xml">
+      <configuration name="Nosetests in tradeCalculatorTest.py" configurationId="tests" />
+    </history-entry>
+    <history-entry file="Nosetests_in_tradeCalculatorTest_py - 2018.05.29 at 22h 55m 04s.xml">
+      <configuration name="Nosetests in tradeCalculatorTest.py" configurationId="tests" />
+    </history-entry>
+    <history-entry file="Nosetests_in_tradeCalculatorTest_py - 2018.05.29 at 22h 59m 24s.xml">
       <configuration name="Nosetests in tradeCalculatorTest.py" configurationId="tests" />
     </history-entry>
   </component>
@@ -351,29 +345,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tradeCalculator/tradeCalculator.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="220">
-          <caret line="10" column="21" lean-forward="false" selection-start-line="10" selection-start-column="21" selection-end-line="10" selection-end-column="21" />
-          <folding>
-            <element signature="e#251#729#0" expanded="false" />
-            <element signature="e#828#871#0" expanded="false" />
-            <element signature="e#903#1297#0" expanded="false" />
-            <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#7188#7588#0" expanded="false" />
-            <element signature="e#7640#7853#0" expanded="false" />
-            <element signature="e#7900#8739#0" expanded="false" />
-            <element signature="e#8793#12855#0" expanded="false" />
-            <element signature="e#9032#12151#0" expanded="false" />
-            <element signature="e#12195#12481#0" expanded="false" />
-            <element signature="e#12909#13719#0" expanded="false" />
-            <element signature="e#13762#14290#0" expanded="false" />
-            <element signature="e#14339#14773#0" expanded="false" />
-            <marker date="1527605140571" expanded="false" signature="12505:12806" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/tradeCalculator/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -382,21 +353,44 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tradeCalculator/test/tradeCalculatorTest.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2646">
-          <caret line="126" column="26" lean-forward="true" selection-start-line="126" selection-start-column="26" selection-end-line="126" selection-end-column="26" />
-          <folding>
-            <element signature="e#41#56#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/tradeCalculator/run.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="357">
           <caret line="18" column="40" lean-forward="false" selection-start-line="18" selection-start-column="40" selection-end-line="18" selection-end-column="40" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tradeCalculator/tradeCalculator.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-586">
+          <caret line="10" column="21" lean-forward="false" selection-start-line="10" selection-start-column="21" selection-end-line="10" selection-end-column="21" />
+          <folding>
+            <element signature="e#251#729#0" expanded="false" />
+            <element signature="e#828#871#0" expanded="false" />
+            <element signature="e#903#1297#0" expanded="false" />
+            <element signature="e#1333#2362#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#7188#7588#0" expanded="false" />
+            <element signature="e#7640#7853#0" expanded="false" />
+            <element signature="e#7900#8739#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
+            <element signature="e#9032#12151#0" expanded="false" />
+            <element signature="e#12195#12481#0" expanded="false" />
+            <element signature="e#12909#13719#0" expanded="false" />
+            <element signature="e#13762#14290#0" expanded="false" />
+            <marker date="1527605140571" expanded="false" signature="12505:12806" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tradeCalculator/test/tradeCalculatorTest.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="483">
+          <caret line="23" column="26" lean-forward="true" selection-start-line="23" selection-start-column="26" selection-end-line="23" selection-end-column="26" />
+          <folding>
+            <element signature="e#41#56#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
