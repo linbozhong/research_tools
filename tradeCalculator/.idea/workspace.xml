@@ -14,23 +14,16 @@
       <file leaf-file-name="tradeCalculator.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/tradeCalculator.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="315">
-              <caret line="208" column="42" lean-forward="true" selection-start-line="208" selection-start-column="42" selection-end-line="208" selection-end-column="42" />
+            <state relative-caret-position="99">
+              <caret line="398" column="31" lean-forward="true" selection-start-line="398" selection-start-column="31" selection-end-line="398" selection-end-column="31" />
               <folding>
                 <element signature="e#41#52#0" expanded="true" />
                 <element signature="e#251#729#0" expanded="false" />
                 <element signature="e#828#871#0" expanded="false" />
                 <element signature="e#903#1297#0" expanded="false" />
                 <element signature="e#1333#2362#0" expanded="false" />
-                <element signature="e#2397#5768#0" expanded="false" />
-                <element signature="e#3233#4249#0" expanded="false" />
-                <element signature="e#4302#4877#0" expanded="false" />
-                <element signature="e#4920#5768#0" expanded="false" />
-                <element signature="e#7242#7455#0" expanded="false" />
-                <element signature="e#7502#8715#0" expanded="false" />
-                <element signature="e#8769#12890#0" expanded="false" />
-                <element signature="e#12944#13706#0" expanded="false" />
-                <element signature="e#13749#14290#0" expanded="false" />
+                <element signature="e#2397#6160#0" expanded="false" />
+                <element signature="e#8793#12855#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -39,7 +32,7 @@
       <file leaf-file-name="tradeCalculatorTest.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test/tradeCalculatorTest.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="733">
+            <state relative-caret-position="714">
               <caret line="37" column="0" lean-forward="false" selection-start-line="37" selection-start-column="0" selection-end-line="37" selection-end-column="0" />
               <folding>
                 <element signature="e#41#56#0" expanded="true" />
@@ -148,7 +141,6 @@
     </navigator>
     <panes>
       <pane id="Scratches" />
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -160,11 +152,12 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="settings.editor.selected.configurable" value="Errors" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
@@ -315,8 +308,9 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="1912" y="-8" width="1936" height="1056" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.28379828" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.28755364" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32997763" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.44183445" sideWeight="0.50214595" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.6152125" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
@@ -348,6 +342,50 @@
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/tradeCalculator.py">
       <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#41#52#0" expanded="true" />
+            <element signature="e#251#729#0" expanded="false" />
+            <element signature="e#828#871#0" expanded="false" />
+            <element signature="e#903#1297#0" expanded="false" />
+            <element signature="e#1333#2362#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test/tradeCalculatorTest.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="714">
+          <caret line="37" column="0" lean-forward="false" selection-start-line="37" selection-start-column="0" selection-end-line="37" selection-end-column="0" />
+          <folding>
+            <element signature="e#41#56#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="21">
+          <caret line="1" column="17" lean-forward="false" selection-start-line="1" selection-start-column="17" selection-end-line="1" selection-end-column="17" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/run.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="189">
+          <caret line="10" column="37" lean-forward="false" selection-start-line="10" selection-start-column="37" selection-end-line="10" selection-end-column="37" />
+          <folding>
+            <element signature="e#41#51#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tradeCalculator.py">
+      <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1386">
           <caret line="223" column="41" lean-forward="false" selection-start-line="223" selection-start-column="41" selection-end-line="223" selection-end-column="41" />
           <folding>
@@ -356,15 +394,8 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -407,15 +438,8 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -445,20 +469,8 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="9702">
-          <caret line="473" column="0" lean-forward="false" selection-start-line="473" selection-start-column="0" selection-end-line="473" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="13272">
-          <caret line="673" column="0" lean-forward="false" selection-start-line="673" selection-start-column="0" selection-end-line="673" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py" />
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py" />
     <entry file="file://$PROJECT_DIR$/test/tradeCalculatorTest.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="147">
@@ -479,15 +491,8 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -509,20 +514,8 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="9702">
-          <caret line="473" column="0" lean-forward="false" selection-start-line="473" selection-start-column="0" selection-end-line="473" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="13272">
-          <caret line="673" column="0" lean-forward="false" selection-start-line="673" selection-start-column="0" selection-end-line="673" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py" />
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py" />
     <entry file="file://$PROJECT_DIR$/tradeCalculator.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -533,33 +526,14 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="9702">
-          <caret line="473" column="0" lean-forward="false" selection-start-line="473" selection-start-column="0" selection-end-line="473" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="13272">
-          <caret line="673" column="0" lean-forward="false" selection-start-line="673" selection-start-column="0" selection-end-line="673" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py" />
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py" />
     <entry file="file://$PROJECT_DIR$/tradeCalculator.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -570,15 +544,8 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -593,15 +560,8 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -616,15 +576,8 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -646,15 +599,8 @@
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -667,20 +613,8 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/demo.py" />
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="796">
-          <caret line="673" column="0" lean-forward="false" selection-start-line="673" selection-start-column="0" selection-end-line="673" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="796">
-          <caret line="473" column="0" lean-forward="false" selection-start-line="473" selection-start-column="0" selection-end-line="473" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/matplotlib/axes/_axes.py" />
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/numeric.py" />
     <entry file="file://$PROJECT_DIR$/constant.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="336">
@@ -708,7 +642,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/test/tradeCalculatorTest.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="733">
+        <state relative-caret-position="714">
           <caret line="37" column="0" lean-forward="false" selection-start-line="37" selection-start-column="0" selection-end-line="37" selection-end-column="0" />
           <folding>
             <element signature="e#41#56#0" expanded="true" />
@@ -718,23 +652,16 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/tradeCalculator.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="208" column="42" lean-forward="true" selection-start-line="208" selection-start-column="42" selection-end-line="208" selection-end-column="42" />
+        <state relative-caret-position="99">
+          <caret line="398" column="31" lean-forward="true" selection-start-line="398" selection-start-column="31" selection-end-line="398" selection-end-column="31" />
           <folding>
             <element signature="e#41#52#0" expanded="true" />
             <element signature="e#251#729#0" expanded="false" />
             <element signature="e#828#871#0" expanded="false" />
             <element signature="e#903#1297#0" expanded="false" />
             <element signature="e#1333#2362#0" expanded="false" />
-            <element signature="e#2397#5768#0" expanded="false" />
-            <element signature="e#3233#4249#0" expanded="false" />
-            <element signature="e#4302#4877#0" expanded="false" />
-            <element signature="e#4920#5768#0" expanded="false" />
-            <element signature="e#7242#7455#0" expanded="false" />
-            <element signature="e#7502#8715#0" expanded="false" />
-            <element signature="e#8769#12890#0" expanded="false" />
-            <element signature="e#12944#13706#0" expanded="false" />
-            <element signature="e#13749#14290#0" expanded="false" />
+            <element signature="e#2397#6160#0" expanded="false" />
+            <element signature="e#8793#12855#0" expanded="false" />
           </folding>
         </state>
       </provider>
