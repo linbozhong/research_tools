@@ -83,7 +83,7 @@ celerybeat-schedule
 .env
 
 # setting file
-*.json
+finance_python/token.json
 
 # virtualenv
 .venv
@@ -102,3 +102,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# data file
+analyze_script/*.csv
