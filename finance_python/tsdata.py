@@ -21,3 +21,15 @@ def get_data(symbols: Sequence, start: str, end: str) -> DataFrame:
     price = pd.DataFrame({symbol: df["close"] for symbol, df in df_dict.items()})
     price.fillna(method="ffill", inplace=True)
     return price
+
+
+def get_data_old(symbols: Sequence, start: str, end: str) -> DataFrame:
+    df_dict = dict()
+    for symbol in symbols:
+        df = ts.get_k_data(symbol, start=start, end=end)
+        df.set_index("date", inplace=True)
+        df_dict[symbol] = df
+        
+    price = pd.DataFrame({symbol: df["close"] for symbol, df in df_dict.items()})
+    price.fillna(method="ffill", inplace=True)
+    return price
