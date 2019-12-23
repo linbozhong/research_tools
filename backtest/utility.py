@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import List
-from vnpy.trader.object import BarData
+from vnpy.trader.object import BarData, TradeData
 
 def vt_bar_to_df(bars: List[BarData]) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -31,5 +31,27 @@ def vt_bar_to_df(bars: List[BarData]) -> pd.DataFrame:
     df["low"] = l
     df["close"] = c
     df["volume"] = v
+    df.index = t
+    return df
+
+
+def vt_trade_to_df(trades: List[TradeData]) -> pd.DataFrame:
+    df = pd.DataFrame()
+    t = []
+    p = []  # noqa
+    d = []
+
+    for trade in trades:
+        dt = trade.datetime
+        direction = trade.direction
+        price = trade.price
+
+        t.append(dt)
+        d.append(direction)
+        p.append(price)
+
+    df["datetime"] = t
+    df["direction"] = d
+    df["price"] = p
     df.index = t
     return df
