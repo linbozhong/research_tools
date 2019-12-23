@@ -105,3 +105,6 @@ ENV/
 
 # data file
 analyze_script/*.csv
+
+# databse setting json
+backtest/.vntrader/vt_setting.json
