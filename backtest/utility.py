@@ -1,57 +1,50 @@
 import pandas as pd
 from typing import List
+from datetime import datetime
+from collections import defaultdict
+
 from vnpy.trader.object import BarData, TradeData
+from vnpy.trader.constant import Interval
+from vnpy.trader.database import database_manager
+from vnpy.trader.utility import extract_vt_symbol
+
 
 def vt_bar_to_df(bars: List[BarData]) -> pd.DataFrame:
-    df = pd.DataFrame()
-    t = []
-    o = []
-    h = []
-    l = []  # noqa
-    c = []
-    v = []
-
+    data = defaultdict(list)
     for bar in bars:
-        time = bar.datetime
-        open_price = bar.open_price
-        high_price = bar.high_price
-        low_price = bar.low_price
-        close_price = bar.close_price
-        volume = bar.volume
-
-        t.append(time)
-        o.append(open_price)
-        h.append(high_price)
-        l.append(low_price)
-        c.append(close_price)
-        v.append(volume)
-
-    df["open"] = o
-    df["high"] = h
-    df["low"] = l
-    df["close"] = c
-    df["volume"] = v
-    df.index = t
+        data['datetime'].append(bar.datetime)
+        data['open'].append(bar.open_price)
+        data['high'].append(bar.high_price)
+        data['low'].append(bar.low_price)
+        data['close'].append(bar.close_price)
+        data['volume'].append(bar.volume)
+    df = pd.DataFrame(data)
+    df.set_index('datetime', inplace=True)
     return df
 
 
 def vt_trade_to_df(trades: List[TradeData]) -> pd.DataFrame:
-    df = pd.DataFrame()
-    t = []
-    p = []  # noqa
-    d = []
-
+    data = defaultdict(list)
     for trade in trades:
-        dt = trade.datetime
-        direction = trade.direction
-        price = trade.price
-
-        t.append(dt)
-        d.append(direction)
-        p.append(price)
-
-    df["datetime"] = t
-    df["direction"] = d
-    df["price"] = p
-    df.index = t
+        data['datetime'].append(trade.datetime)
+        data['vt_symbol'].append(trade.vt_symbol)
+        data['direction'].append(trade.direction.value)
+        data['offset'].append(trade.offset.value)
+        data['price'].append(trade.price)
+        data['volume'].append(trade.volume)
+    df = pd.DataFrame(data)
+    df.set_index('datetime', inplace=True)
     return df
+
+
+def load_data(vt_symbol: str, interval: str, start: datetime, end: datetime) -> pd.DataFrame:
+    symbol, exchange = extract_vt_symbol(vt_symbol)
+    data = database_manager.load_bar_data(
+        symbol,
+        exchange,
+        Interval(interval),
+        start=start,
+        end=end,
+    )
+
+    return vt_bar_to_df(data)

@@ -108,4 +108,5 @@ analyze_script/*.csv
 
 # databse setting json
 backtest/*.csv
+!backtest/dominant_data.csv
 backtest/.vntrader/vt_setting.json
