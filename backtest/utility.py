@@ -46,5 +46,14 @@ def load_data(vt_symbol: str, interval: str, start: datetime, end: datetime) -> 
         start=start,
         end=end,
     )
-
     return vt_bar_to_df(data)
+
+
+def strip_digt(symbol: str) -> str:
+    res = ""
+    for char in symbol:
+        if not char.isdigit():
+            res += char
+        else:
+            break
+    return res
