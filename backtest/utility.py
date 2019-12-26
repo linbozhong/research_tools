@@ -1,12 +1,14 @@
 import pandas as pd
-from typing import List
-from datetime import datetime， timedelta
+from typing import List, Tuple
+from datetime import datetime, timedelta
+from datetime import time as dt_time
 from collections import defaultdict
 
 from vnpy.trader.object import BarData, TradeData
-from vnpy.trader.constant import Interval
+from vnpy.trader.constant import Interval, Offset
 from vnpy.trader.database import database_manager
 from vnpy.trader.utility import extract_vt_symbol
+from vnpy.app.cta_strategy.backtesting import BacktestingEngine
 
 
 def vt_bar_to_df(bars: List[BarData]) -> pd.DataFrame:
@@ -32,6 +34,7 @@ def vt_trade_to_df(trades: List[TradeData]) -> pd.DataFrame:
         data['offset'].append(trade.offset.value)
         data['price'].append(trade.price)
         data['volume'].append(trade.volume)
+        data['vt_tradeid'].append(trade.vt_tradeid)
     df = pd.DataFrame(data)
     df.set_index('datetime', inplace=True)
     return df
@@ -80,14 +83,81 @@ def get_dominant_in_periods(underlying: str, backtest_start: datetime, backtest_
     """
     underlying = underlying.upper()
     seg = pd.read_csv('dominant_data.csv', parse_dates=[1, 2])
-    
+
     sel = seg[seg['underlying'] == underlying].copy()
-    sel.reset_index(inplace=True)
+    sel.reset_index(inplace=True, drop=True)
     passed = sel[sel['start'] < backtest_start]
     after = sel[sel['start'] > backtest_end]
     passed_closest_idx = passed.index.values[-1]
     after_first_idx = after.index.values[0] if not after.empty else len(sel)
-    
+
+    # 选出的合约如果变非主力的日期和回测开始日期相比，只剩几天（不够初始化历史数据）应该排除。
+    # 过滤天数：30天计算指标的历史数据 + 最少可交易7天（相当于1周交易天数）
     if passed.iloc[-1]['end'] - backtest_start < timedelta(days=37):
         passed_closest_idx += 1
-    return sel[passed_closest_idx: after_first_idx].copy()
+
+    res_df = sel[passed_closest_idx: after_first_idx].copy()
+    res_df.reset_index(inplace=True, drop=True)
+    return res_df
+
+
+def clear_open_trade_after_deadline(trades: List[TradeData], deadline: datetime) -> List[str]:
+    to_pop_list = []
+    ready = False
+    for trade in trades:
+        if trade.datetime > deadline:
+            if not ready and trade.offset == Offset.OPEN:
+                ready = True
+            if ready:
+                to_pop_list.append(trade.vt_orderid)
+    return to_pop_list
+
+
+def single_backtest(vt_symbol: str, start_date: datetime, end_date: datetime, strategy_class: type) -> Tuple[pd.DataFrame, datetime]:
+    real_end_date = end_date + timedelta(days=30)
+
+    engine = BacktestingEngine()
+    engine.set_parameters(
+        vt_symbol=vt_symbol,
+        interval="1h",
+        start=start_date,
+        end=real_end_date,
+        rate=0,
+        slippage=0,
+        size=10,
+        pricetick=1,
+        capital=100000,
+    )
+    engine.add_strategy(strategy_class, {})
+
+    engine.load_data()
+    engine.run_backtesting()
+
+    # before calculate daily pnl, clear open trade after end date
+    trades = engine.get_all_trades()
+    to_pop_list = clear_open_trade_after_deadline(trades, end_date)
+    if to_pop_list:
+        [engine.trades.pop(trade_id) for trade_id in to_pop_list]
+
+    last_trade_dt = engine.get_all_trades()[-1].datetime
+
+    # calculate daily pnl
+    df = engine.calculate_result()
+#     df.to_csv('result.csv')
+
+    return df, last_trade_dt
+
+
+def process_last_trade_dt(trade_dt: datetime, back_days: int) -> datetime:
+    day_start = dt_time(8)
+    day_end = dt_time(16)
+
+    # trade happend in day light
+    if day_start < trade_dt.time() < day_end:
+        trade_dt.replace(hour=20)
+    else:
+        trade_dt += timedelta(days=1)
+        trade_dt.replace(hour=8)
+
+    return trade_dt - timedelta(back_days)
+    
