@@ -113,8 +113,16 @@ def clear_open_trade_after_deadline(trades: List[TradeData], deadline: datetime)
     return to_pop_list
 
 
-def single_backtest(vt_symbol: str, start_date: datetime, end_date: datetime, strategy_class: type) -> Tuple[pd.DataFrame, datetime]:
-    real_end_date = end_date + timedelta(days=30)
+def single_backtest(
+    vt_symbol: str,
+    start_date: datetime,
+    end_date: datetime,
+    strategy_class: type,
+    is_last: bool = False
+) -> Tuple[pd.DataFrame, datetime]:
+    """
+    """
+    real_end_date = end_date if is_last else end_date + timedelta(days=40)
 
     engine = BacktestingEngine()
     engine.set_parameters(
@@ -130,6 +138,7 @@ def single_backtest(vt_symbol: str, start_date: datetime, end_date: datetime, st
     )
     engine.add_strategy(strategy_class, {})
 
+    print(engine.vt_symbol, engine.start, engine.end, type(engine.start), type(engine.end))
     engine.load_data()
     engine.run_backtesting()
 
@@ -140,10 +149,14 @@ def single_backtest(vt_symbol: str, start_date: datetime, end_date: datetime, st
         [engine.trades.pop(trade_id) for trade_id in to_pop_list]
 
     last_trade_dt = engine.get_all_trades()[-1].datetime
+    print('last trade:', last_trade_dt)
 
     # calculate daily pnl
     df = engine.calculate_result()
-#     df.to_csv('result.csv')
+
+    # remove daily pnl after last trade
+    end_dt = last_trade_dt + timedelta(1)
+    df = df[:end_dt.date()].copy()
 
     return df, last_trade_dt
 
