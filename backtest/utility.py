@@ -119,7 +119,7 @@ def single_backtest(
     end_date: datetime,
     strategy_class: type,
     is_last: bool = False
-) -> Tuple[pd.DataFrame, datetime]:
+) -> Tuple[pd.DataFrame, pd.DataFrame, datetime]:
     """
     """
     real_end_date = end_date if is_last else end_date + timedelta(days=40)
@@ -143,25 +143,28 @@ def single_backtest(
     engine.run_backtesting()
 
     # before calculate daily pnl, clear open trade after end date
-    trades = engine.get_all_trades()
-    to_pop_list = clear_open_trade_after_deadline(trades, end_date)
+    to_pop_list = clear_open_trade_after_deadline(engine.get_all_trades(), end_date)
     if to_pop_list:
         [engine.trades.pop(trade_id) for trade_id in to_pop_list]
 
     last_trade_dt = engine.get_all_trades()[-1].datetime
     print('last trade:', last_trade_dt)
+    trade_df = vt_trade_to_df(engine.get_all_trades())
 
     # calculate daily pnl
-    df = engine.calculate_result()
+    pnl_df = engine.calculate_result()
 
-    # remove daily pnl after last trade
-    end_dt = last_trade_dt + timedelta(1)
-    df = df[:end_dt.date()].copy()
+    # remove daily pnl after last trade if last trade happend after end date
+    end_dt = last_trade_dt if last_trade_dt > end_date else end_date
+    pnl_df = pnl_df[:end_dt.date()].copy()
 
-    return df, last_trade_dt
+    return pnl_df, trade_df, end_dt
 
 
 def process_last_trade_dt(trade_dt: datetime, back_days: int) -> datetime:
+    """
+    depreciated
+    """
     day_start = dt_time(8)
     day_end = dt_time(16)
 
@@ -173,4 +176,13 @@ def process_last_trade_dt(trade_dt: datetime, back_days: int) -> datetime:
         trade_dt.replace(hour=8)
 
     return trade_dt - timedelta(back_days)
-    
+
+
+def get_trading_date() -> pd.Series:
+    df = pd.read_csv('trading_date.csv', usecols=[1], parse_dates=[0])
+    return df['trading_day']
+
+
+def get_pre_trading_date(dt: datetime, n: int) -> datetime:
+    s = get_trading_date()
+    return s[s <= dt].iloc[-n]

@@ -55,7 +55,8 @@ class BollChannelStrategy(CtaTemplate):
 
         # 对于回撤引擎这里是关键，要设置好callback函数
         # 回测的new_bar函数内，仍然是调用on_bar，如果不需要合成的bar逻辑，比如直接用hour线的，就是直接用on_bar作为回调函数
-        self.load_bar(30)
+        # 回测引擎使用的days是交易日，即开始日期+n日交易日才是真正的开始。而实盘引擎是从现在开始往历史倒推n个自然日。
+        self.load_bar(20)
 
     def on_start(self):
         """
