@@ -19,7 +19,7 @@ class BollChannelStrategy(CtaTemplate):
     boll_dev = 3.4
     cci_window = 10
     atr_window = 30
-    sl_multiplier = 5.2
+    sl_multiplier = 3
     fixed_size = 1
 
     boll_up = 0
