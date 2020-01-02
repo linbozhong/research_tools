@@ -3,6 +3,7 @@ from typing import List, Tuple
 from datetime import datetime, timedelta
 from datetime import time as dt_time
 from collections import defaultdict
+from pathlib import Path
 
 from vnpy.trader.object import BarData, TradeData
 from vnpy.trader.constant import Interval, Offset
@@ -186,3 +187,7 @@ def get_trading_date() -> pd.Series:
 def get_pre_trading_date(dt: datetime, n: int) -> datetime:
     s = get_trading_date()
     return s[s <= dt].iloc[-n]
+
+def get_output_path(filename: str):
+    curr_dir = Path.cwd()
+    return curr_dir.joinpath('result', filename)

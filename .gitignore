@@ -107,7 +107,8 @@ ENV/
 analyze_script/*.csv
 
 # databse setting json
-backtest/*.csv
+# backtest/*.csv
 !backtest/dominant_data.csv
 !backtest/trading_date.csv
 backtest/.vntrader/vt_setting.json
+backtest/result/*.csv
