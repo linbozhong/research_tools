@@ -11,6 +11,19 @@ from vnpy.trader.database import database_manager
 from vnpy.trader.utility import extract_vt_symbol
 from vnpy.app.cta_strategy.backtesting import BacktestingEngine
 
+zh_to_en = {
+    '多': 'long',
+    '空': 'short',
+    '开': 'open',
+    '平': 'close'
+}
+
+
+def trade_zh_to_en(trade_df: pd.DataFrame) -> pd.DataFrame:
+    trade_df['direction'] = trade_df['direction'].map(zh_to_en)
+    trade_df['offset'] = trade_df['offset'].map(zh_to_en)
+    return trade_df
+
 
 def vt_bar_to_df(bars: List[BarData]) -> pd.DataFrame:
     data = defaultdict(list)
@@ -160,23 +173,6 @@ def single_backtest(
     pnl_df = pnl_df[:end_dt.date()].copy()
 
     return pnl_df, trade_df, end_dt
-
-
-def process_last_trade_dt(trade_dt: datetime, back_days: int) -> datetime:
-    """
-    depreciated
-    """
-    day_start = dt_time(8)
-    day_end = dt_time(16)
-
-    # trade happend in day light
-    if day_start < trade_dt.time() < day_end:
-        trade_dt.replace(hour=20)
-    else:
-        trade_dt += timedelta(days=1)
-        trade_dt.replace(hour=8)
-
-    return trade_dt - timedelta(back_days)
 
 
 def get_trading_date() -> pd.Series:
