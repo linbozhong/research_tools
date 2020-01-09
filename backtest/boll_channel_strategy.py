@@ -13,7 +13,7 @@ from vnpy.app.cta_strategy import (
 class BollChannelStrategy(CtaTemplate):
     """"""
 
-    author = "segmentation backtest sample"
+    author = "backtest example"
 
     boll_window = 18
     boll_dev = 3.4

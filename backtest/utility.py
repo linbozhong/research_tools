@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from datetime import datetime, timedelta
 from datetime import time as dt_time
 from collections import defaultdict
@@ -11,6 +11,14 @@ from vnpy.trader.database import database_manager
 from vnpy.trader.utility import extract_vt_symbol
 from vnpy.app.cta_strategy.backtesting import BacktestingEngine
 
+from boll_channel_strategy import BollChannelStrategy
+from turtle_signal_strategy import TurtleSignalStrategy
+
+strategy_dict = {
+    'boll': BollChannelStrategy,
+    'turtle': TurtleSignalStrategy
+}
+
 zh_to_en = {
     '多': 'long',
     '空': 'short',
@@ -18,6 +26,8 @@ zh_to_en = {
     '平': 'close'
 }
 
+dominant_data = pd.read_csv('dominant_data.csv', parse_dates=[1, 2])
+exchange_map = dominant_data.copy().drop_duplicates('underlying').set_index('underlying')['exchange']
 
 def trade_zh_to_en(trade_df: pd.DataFrame) -> pd.DataFrame:
     trade_df['direction'] = trade_df['direction'].map(zh_to_en)
@@ -184,6 +194,63 @@ def get_pre_trading_date(dt: datetime, n: int) -> datetime:
     s = get_trading_date()
     return s[s <= dt].iloc[-n]
 
-def get_output_path(filename: str):
+def get_output_path(filename: str, folder_name: Optional[str, None] = None):
     curr_dir = Path.cwd()
-    return curr_dir.joinpath('result', filename)
+    folder = curr_dir.joinpath('result') if not folder_name else curr_dir.joinpath('result', folder_name)
+    if not folder.exists():
+        folder.mkdir()
+    return curr_dir.joinpath(folder, filename)
+
+
+def comodity_to_vt_symbol(commodity: str, data_mode: str) -> str:
+    exchange = exchange_map[commodity.upper()]
+    digit = '888' if data_mode == 'main' else '99'
+    return f"{commodity.upper()}{digit}.{exchange}"
+
+
+def continuous_backtest(
+    commodity: str,
+    data_mode: str,
+    interval: str,
+    strategy_name: str,
+    strategy_params: dict,
+    start: datetime,
+    end: datetime,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+    """"""
+    vt_symbol = comodity_to_vt_symbol(commodity, data_mode)
+    f = lambda x: x.strftime("%Y%m%d")
+    params_id = ''.join(list(map(str, strategy_params.values())))
+    folder_name = f"{vt_symbol}_{interval}_{f(start)}{f(end)}_{strategy_name}_{params_id}"
+    engine = BacktestingEngine()
+    engine.set_parameters(
+        vt_symbol=vt_symbol,
+        interval=interval,
+        start=start,
+        end=end,
+        rate=0,
+        slippage=0,
+        size=10,
+        pricetick=1,
+    )
+    engine.add_strategy(strategy_dict[strategy_name], strategy_params)
+
+    engine.load_data()
+    engine.run_backtesting()
+
+    # trade
+    fname = f'{engine.vt_symbol}_trade_continuous.csv'
+    trades = engine.get_all_trades()
+    trade_df = vt_trade_to_df(trades)
+    trade_df = trade_zh_to_en(trade_df)
+    trade_df.to_csv(get_output_path(fname, folder_name))
+
+    # pnl
+    fname = f'{engine.vt_symbol}_pnl_continuous.csv'
+    pnl_df = engine.calculate_result()
+    pnl_df.to_csv(get_output_path(fname, folder_name))
+
+    # result
+    res_dict = engine.calculate_statistics()
+    result_df = engine.daily_df
+    return trade_df, pnl_df, result_df, res_dict
