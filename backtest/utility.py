@@ -27,7 +27,7 @@ zh_to_en = {
 }
 
 dominant_data = pd.read_csv('dominant_data.csv', parse_dates=[1, 2])
-exchange_map = dominant_data.copy().drop_duplicates('underlying').set_index('underlying')['exchange']
+future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
 
 def trade_zh_to_en(trade_df: pd.DataFrame) -> pd.DataFrame:
     trade_df['direction'] = trade_df['direction'].map(zh_to_en)
@@ -106,7 +106,7 @@ def get_dominant_in_periods(underlying: str, backtest_start: datetime, backtest_
     获取某个日期区间的主力合约数据
     """
     underlying = underlying.upper()
-    seg = pd.read_csv('dominant_data.csv', parse_dates=[1, 2])
+    seg = dominant_data
 
     sel = seg[seg['underlying'] == underlying].copy()
     sel.reset_index(inplace=True, drop=True)
@@ -139,30 +139,35 @@ def clear_open_trade_after_deadline(trades: List[TradeData], deadline: datetime)
 
 def single_backtest(
     vt_symbol: str,
+    interval: str,
+    capital: int,
     start_date: datetime,
     end_date: datetime,
     strategy_class: type,
     is_last: bool = False
 ) -> Tuple[pd.DataFrame, pd.DataFrame, datetime]:
-    """
-    """
+    """"""
+    commodity = strip_digt(vt_symbol)
+    size = future_basic_data.loc[commodity]['size']
+    pricetick = future_basic_data.loc[commodity]['pricetick']
+
     real_end_date = end_date if is_last else end_date + timedelta(days=40)
 
     engine = BacktestingEngine()
     engine.set_parameters(
         vt_symbol=vt_symbol,
-        interval="1h",
+        interval=interval,
         start=start_date,
         end=real_end_date,
         rate=0,
         slippage=0,
-        size=10,
-        pricetick=1,
-        capital=100000,
+        size=size,
+        pricetick=pricetick,
+        capital=capital,
     )
     engine.add_strategy(strategy_class, {})
 
-    print(engine.vt_symbol, engine.start, engine.end, type(engine.start), type(engine.end))
+    # print(engine.vt_symbol, engine.start, engine.end, type(engine.start), type(engine.end))
     engine.load_data()
     engine.run_backtesting()
 
@@ -172,7 +177,7 @@ def single_backtest(
         [engine.trades.pop(trade_id) for trade_id in to_pop_list]
 
     last_trade_dt = engine.get_all_trades()[-1].datetime
-    print('last trade:', last_trade_dt)
+    # print('last trade:', last_trade_dt)
     trade_df = vt_trade_to_df(engine.get_all_trades())
 
     # calculate daily pnl
@@ -194,7 +199,7 @@ def get_pre_trading_date(dt: datetime, n: int) -> datetime:
     s = get_trading_date()
     return s[s <= dt].iloc[-n]
 
-def get_output_path(filename: str, folder_name: Optional[str, None] = None):
+def get_output_path(filename: str, folder_name: Optional[str] = None):
     curr_dir = Path.cwd()
     folder = curr_dir.joinpath('result') if not folder_name else curr_dir.joinpath('result', folder_name)
     if not folder.exists():
@@ -203,7 +208,7 @@ def get_output_path(filename: str, folder_name: Optional[str, None] = None):
 
 
 def comodity_to_vt_symbol(commodity: str, data_mode: str) -> str:
-    exchange = exchange_map[commodity.upper()]
+    exchange = future_basic_data.loc[commodity]['exchange']
     digit = '888' if data_mode == 'main' else '99'
     return f"{commodity.upper()}{digit}.{exchange}"
 
@@ -214,14 +219,18 @@ def continuous_backtest(
     interval: str,
     strategy_name: str,
     strategy_params: dict,
+    capital: int,
     start: datetime,
     end: datetime,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
     """"""
     vt_symbol = comodity_to_vt_symbol(commodity, data_mode)
     f = lambda x: x.strftime("%Y%m%d")
-    params_id = ''.join(list(map(str, strategy_params.values())))
-    folder_name = f"{vt_symbol}_{interval}_{f(start)}{f(end)}_{strategy_name}_{params_id}"
+    params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
+    folder_name = f"{commodity}_{interval}_{f(start)}{f(end)}_{strategy_name}_{params_id}"
+    size = future_basic_data.loc[commodity]['size']
+    pricetick = future_basic_data.loc[commodity]['pricetick']
+
     engine = BacktestingEngine()
     engine.set_parameters(
         vt_symbol=vt_symbol,
@@ -230,27 +239,86 @@ def continuous_backtest(
         end=end,
         rate=0,
         slippage=0,
-        size=10,
-        pricetick=1,
+        size=size,
+        pricetick=pricetick,
+        capital=capital
     )
     engine.add_strategy(strategy_dict[strategy_name], strategy_params)
 
+    # run backtest
     engine.load_data()
     engine.run_backtesting()
 
-    # trade
-    fname = f'{engine.vt_symbol}_trade_continuous.csv'
+    # save trade
+    fname = f'{commodity}_trade_continuous.csv'
     trades = engine.get_all_trades()
     trade_df = vt_trade_to_df(trades)
     trade_df = trade_zh_to_en(trade_df)
     trade_df.to_csv(get_output_path(fname, folder_name))
 
-    # pnl
-    fname = f'{engine.vt_symbol}_pnl_continuous.csv'
+    # save pnl
+    fname = f'{commodity}_pnl_continuous.csv'
     pnl_df = engine.calculate_result()
     pnl_df.to_csv(get_output_path(fname, folder_name))
 
     # result
     res_dict = engine.calculate_statistics()
-    result_df = engine.daily_df
-    return trade_df, pnl_df, result_df, res_dict
+    res_df = engine.daily_df
+    return trade_df, pnl_df, res_df, res_dict
+
+
+def segment_backtest(
+    commodity: str,
+    interval: str,
+    strategy_name: str,
+    strategy_params: dict,
+    capital: int,
+    backtest_start: datetime,
+    backtest_end: datetime,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+    """"""
+    f = lambda x: x.strftime("%Y%m%d")
+    params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
+    folder_name = f"{commodity}_{interval}_{f(backtest_start)}{f(backtest_end)}_{strategy_name}_{params_id}"
+
+    dom_df = get_dominant_in_periods(commodity, backtest_start, backtest_end)
+    start = backtest_start
+    pnl_dfs = []
+    trade_dfs = []
+    for (idx, row) in dom_df.iterrows():
+        # even become sub-main, but if open trade exists, it must continute until no position.
+        is_last = False
+        end = row['end'].to_pydatetime()
+        vt_symbol = row['vt_symbol']
+        
+        if idx == len(dom_df) - 1:
+            end = backtest_end
+            is_last = True
+            
+        # run backtest function
+        # the open trade after sub-main day must be deleted.
+        df_pnl, df_trade, prev_end_dt = single_backtest(vt_symbol, interval, capital, start, end, strategy_dict['turtle'], is_last)
+        pnl_dfs.append(df_pnl)
+        trade_dfs.append(df_trade)
+        
+        # backward n trading days. Because backtest engine use n trading days to calculate init data. 
+        # n must set to stretegy init data days so the backtest trading begin is one day after last trade day
+        start = get_pre_trading_date(prev_end_dt, 20).to_pydatetime()
+        
+        # save to verify result
+        fname = f"pnl_{vt_symbol}-{f(start)}-{f(prev_end_dt)}.csv"
+        df_pnl.to_csv(get_output_path(fname))
+        
+    all_pnl_df = pd.concat(pnl_dfs)
+    all_trade_df = pd.concat(trade_dfs)
+    all_trade_df = trade_zh_to_en(all_trade_df)
+
+    all_pnl_df.to_csv(get_output_path(f'{commodity}_pnl_seg.csv', folder_name))
+    all_trade_df.to_csv(get_output_path(f'{commodity}_trade_seg.csv', folder_name))
+
+    engine = BacktestingEngine()
+    engine.capital = capital
+    res_df = all_pnl_df.copy()
+    res_dict = engine.calculate_statistics(df=res_df)
+
+    return all_trade_df, all_pnl_df, res_df, res_dict
