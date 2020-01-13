@@ -1,0 +1,37 @@
+def run_backtesting(self, real_start=None):
+        """"""
+        if self.mode == BacktestingMode.BAR:
+            func = self.new_bar
+        else:
+            func = self.new_tick
+
+        self.strategy.on_init()
+
+        # Use the first [days] of history data for initializing strategy
+        day_count = 0
+        ix = 0
+        for ix, data in enumerate(self.history_data):
+            if not real_start:
+                if self.datetime and data.datetime.day != self.datetime.day:
+                    day_count += 1
+                    if day_count >= self.days:
+                        break
+            else:
+                if data.datetime >= real_start:
+                    break
+
+            self.datetime = data.datetime
+            self.callback(data)
+
+        self.strategy.inited = True
+        self.output("策略初始化完成")
+
+        self.strategy.on_start()
+        self.strategy.trading = True
+        self.output("开始回放历史数据")
+
+        # Use the rest of history data for running backtesting
+        for data in self.history_data[ix:]:
+            func(data)
+
+        self.output("历史数据回放结束")

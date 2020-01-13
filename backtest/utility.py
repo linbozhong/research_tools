@@ -1,3 +1,15 @@
+# 在本机未更新至2.0.8的情况下，使用vnpy2.0.8的回测逻辑
+import sys
+from pathlib import Path
+# new_version_path = Path(r'D:\vnpy-2.0.8')
+new_version_path = Path(r'E:\vnpy\vnpy-2.0.8')
+sys.path.insert(0, str(new_version_path))
+# sys.path
+
+import vnpy
+print(vnpy.__version__)
+
+
 import pandas as pd
 from typing import List, Tuple, Optional
 from datetime import datetime, timedelta
@@ -124,13 +136,16 @@ def get_dominant_in_periods(underlying: str, backtest_start: datetime, backtest_
     sel.reset_index(inplace=True, drop=True)
     passed = sel[sel['start'] < backtest_start]
     after = sel[sel['start'] > backtest_end]
-    passed_closest_idx = passed.index.values[-1]
-    after_first_idx = after.index.values[0] if not after.empty else len(sel)
 
     # 选出的合约如果变非主力的日期和回测开始日期相比，只剩几天（不够初始化历史数据）应该排除。
     # 过滤天数：30天计算指标的历史数据 + 最少可交易7天（相当于1周交易天数）
-    if passed.iloc[-1]['end'] - backtest_start < timedelta(days=37):
-        passed_closest_idx += 1
+    after_first_idx = after.index.values[0] if not after.empty else len(sel)
+    if not passed.empty:
+        passed_closest_idx = passed.index.values[-1]
+        if passed.iloc[-1]['end'] - backtest_start < timedelta(days=37):
+            passed_closest_idx += 1
+    else:
+        passed_closest_idx = 0
 
     res_df = sel[passed_closest_idx: after_first_idx].copy()
     res_df.reset_index(inplace=True, drop=True)
@@ -155,6 +170,7 @@ def single_backtest(
     capital: int,
     start_date: datetime,
     end_date: datetime,
+    real_start: datetime,
     strategy_class: type,
     is_last: bool = False
 ) -> Tuple[pd.DataFrame, pd.DataFrame, datetime]:
@@ -181,7 +197,7 @@ def single_backtest(
 
     # print(engine.vt_symbol, engine.start, engine.end, type(engine.start), type(engine.end))
     engine.load_data()
-    engine.run_backtesting()
+    engine.run_backtesting(real_start)
 
     # before calculate daily pnl, clear open trade after end date
     to_pop_list = clear_open_trade_after_deadline(engine.get_all_trades(), end_date)
@@ -278,6 +294,7 @@ def continuous_backtest(
     # result
     res_dict = engine.calculate_statistics()
     res_df = engine.daily_df
+    res_df.to_csv(get_output_path('source_res_continuous.csv', folder_name))
     pd.DataFrame([res_dict]).to_csv(get_output_path('result_continuous.csv', folder_name))
     return trade_df, pnl_df, res_df, res_dict
 
@@ -297,7 +314,9 @@ def segment_backtest(
     folder_name = f"{commodity}_{interval}_{f(backtest_start)}{f(backtest_end)}_{strategy_name}_{params_id}"
 
     dom_df = get_dominant_in_periods(commodity, backtest_start, backtest_end)
+    # print(dom_df)
     start = backtest_start
+    real_next_start = None
     pnl_dfs = []
     trade_dfs = []
     for (idx, row) in dom_df.iterrows():
@@ -312,7 +331,7 @@ def segment_backtest(
             
         # run backtest function
         # the open trade after sub-main day must be deleted.
-        res_tuple = single_backtest(vt_symbol, interval, capital, start, end, strategy_dict['turtle'], is_last)
+        res_tuple = single_backtest(vt_symbol, interval, capital, start, end, real_next_start, strategy_dict['turtle'], is_last)
         if res_tuple:
             df_pnl, df_trade, prev_end_dt = res_tuple
             pnl_dfs.append(df_pnl)
@@ -320,13 +339,16 @@ def segment_backtest(
 
             # backward n trading days. Because backtest engine use n trading days to calculate init data. 
             # n must set to stretegy init data days so the backtest trading begin is one day after last trade day
+            print('last trade:', prev_end_dt)
             start = get_pre_trading_date(prev_end_dt, 20).to_pydatetime()
+            print('new seg start:', start)
+            real_next_start = prev_end_dt + timedelta(1)
             
             # save to verify result
-            fname = f"pnl_{vt_symbol}-{f(start)}-{f(prev_end_dt)}.csv"
+            fname = f"pnl_{vt_symbol}-{f(start)}-{f(end)}.csv"
             df_pnl.to_csv(get_output_path(fname, folder_name, 'sub_result'))
         else:
-            print(f"策略：{strategy_name} 参数：{params_id} 存在单段回测交易无法闭合，无法保证分段回测准确性！")
+            print(f"策略：{strategy_name} 参数：{params_id} 存在单段回测交易无法闭合，无法保证分段回测准确性，退出分段回测！")
             return
         
     all_pnl_df = pd.concat(pnl_dfs)
@@ -340,7 +362,7 @@ def segment_backtest(
     engine.capital = capital
     res_df = all_pnl_df.copy()
     res_dict = engine.calculate_statistics(df=res_df)
-
+    res_df.to_csv(get_output_path('source_res_seg.csv', folder_name))
     pd.DataFrame([res_dict]).to_csv(get_output_path('result_seg.csv', folder_name))
 
     return all_trade_df, all_pnl_df, res_df, res_dict
