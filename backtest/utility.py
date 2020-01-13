@@ -3,7 +3,7 @@ from typing import List, Tuple, Optional
 from datetime import datetime, timedelta
 from datetime import time as dt_time
 from collections import defaultdict
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from vnpy.trader.object import BarData, TradeData
 from vnpy.trader.constant import Interval, Offset
@@ -25,6 +25,18 @@ zh_to_en = {
     '开': 'open',
     '平': 'close'
 }
+
+compare_items = [
+    'total_days',
+    'profit_days',
+    'max_ddpercent',
+    'max_drawdown_duration',
+    'total_return',
+    'return_std',
+    'daily_return',
+    'sharpe_ratio',
+    'return_drawdown_ratio'
+]
 
 dominant_data = pd.read_csv('dominant_data.csv', parse_dates=[1, 2])
 future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
@@ -180,6 +192,11 @@ def single_backtest(
     # print('last trade:', last_trade_dt)
     trade_df = vt_trade_to_df(engine.get_all_trades())
 
+    # check is the last trade closed.
+    if trade_df.iloc[-1].offset != '平':
+        print("合约到期前交易无法闭合")
+        return
+
     # calculate daily pnl
     pnl_df = engine.calculate_result()
 
@@ -199,12 +216,11 @@ def get_pre_trading_date(dt: datetime, n: int) -> datetime:
     s = get_trading_date()
     return s[s <= dt].iloc[-n]
 
-def get_output_path(filename: str, folder_name: Optional[str] = None):
-    curr_dir = Path.cwd()
-    folder = curr_dir.joinpath('result') if not folder_name else curr_dir.joinpath('result', folder_name)
+def get_output_path(filename: str, *folder_args) -> PurePath:
+    folder = Path.cwd().joinpath('result', *folder_args)
     if not folder.exists():
-        folder.mkdir()
-    return curr_dir.joinpath(folder, filename)
+        folder.mkdir(parents=True)
+    return folder.joinpath(folder, filename)
 
 
 def comodity_to_vt_symbol(commodity: str, data_mode: str) -> str:
@@ -250,20 +266,19 @@ def continuous_backtest(
     engine.run_backtesting()
 
     # save trade
-    fname = f'{commodity}_trade_continuous.csv'
     trades = engine.get_all_trades()
     trade_df = vt_trade_to_df(trades)
     trade_df = trade_zh_to_en(trade_df)
-    trade_df.to_csv(get_output_path(fname, folder_name))
+    trade_df.to_csv(get_output_path('trade_continuous.csv', folder_name))
 
     # save pnl
-    fname = f'{commodity}_pnl_continuous.csv'
     pnl_df = engine.calculate_result()
-    pnl_df.to_csv(get_output_path(fname, folder_name))
+    pnl_df.to_csv(get_output_path('pnl_continuous.csv', folder_name))
 
     # result
     res_dict = engine.calculate_statistics()
     res_df = engine.daily_df
+    pd.DataFrame([res_dict]).to_csv(get_output_path('result_continuous.csv', folder_name))
     return trade_df, pnl_df, res_df, res_dict
 
 
@@ -297,28 +312,70 @@ def segment_backtest(
             
         # run backtest function
         # the open trade after sub-main day must be deleted.
-        df_pnl, df_trade, prev_end_dt = single_backtest(vt_symbol, interval, capital, start, end, strategy_dict['turtle'], is_last)
-        pnl_dfs.append(df_pnl)
-        trade_dfs.append(df_trade)
-        
-        # backward n trading days. Because backtest engine use n trading days to calculate init data. 
-        # n must set to stretegy init data days so the backtest trading begin is one day after last trade day
-        start = get_pre_trading_date(prev_end_dt, 20).to_pydatetime()
-        
-        # save to verify result
-        fname = f"pnl_{vt_symbol}-{f(start)}-{f(prev_end_dt)}.csv"
-        df_pnl.to_csv(get_output_path(fname))
+        res_tuple = single_backtest(vt_symbol, interval, capital, start, end, strategy_dict['turtle'], is_last)
+        if res_tuple:
+            df_pnl, df_trade, prev_end_dt = res_tuple
+            pnl_dfs.append(df_pnl)
+            trade_dfs.append(df_trade)
+
+            # backward n trading days. Because backtest engine use n trading days to calculate init data. 
+            # n must set to stretegy init data days so the backtest trading begin is one day after last trade day
+            start = get_pre_trading_date(prev_end_dt, 20).to_pydatetime()
+            
+            # save to verify result
+            fname = f"pnl_{vt_symbol}-{f(start)}-{f(prev_end_dt)}.csv"
+            df_pnl.to_csv(get_output_path(fname, folder_name, 'sub_result'))
+        else:
+            print(f"策略：{strategy_name} 参数：{params_id} 存在单段回测交易无法闭合，无法保证分段回测准确性！")
+            return
         
     all_pnl_df = pd.concat(pnl_dfs)
     all_trade_df = pd.concat(trade_dfs)
     all_trade_df = trade_zh_to_en(all_trade_df)
 
-    all_pnl_df.to_csv(get_output_path(f'{commodity}_pnl_seg.csv', folder_name))
-    all_trade_df.to_csv(get_output_path(f'{commodity}_trade_seg.csv', folder_name))
+    all_pnl_df.to_csv(get_output_path('pnl_seg.csv', folder_name))
+    all_trade_df.to_csv(get_output_path('trade_seg.csv', folder_name))
 
     engine = BacktestingEngine()
     engine.capital = capital
     res_df = all_pnl_df.copy()
     res_dict = engine.calculate_statistics(df=res_df)
 
+    pd.DataFrame([res_dict]).to_csv(get_output_path('result_seg.csv', folder_name))
+
     return all_trade_df, all_pnl_df, res_df, res_dict
+
+
+def compare(folder: PurePath) -> dict:
+    """"""
+    trade_kwargs = {'index_col': 0, 'parse_dates': True}
+    pnl_kwargs = {'index_col': 0, 'parse_dates': True, 'usecols': [0, 1, 2, 4, 5, 6, 10, 11, 12, 13]}
+    result_kwargs = {'index_col': 0}
+
+    trade_cont = pd.read_csv(folder.joinpath('trade_continuous.csv'), **trade_kwargs)
+    trade_seg = pd.read_csv(folder.joinpath('trade_seg.csv'), **trade_kwargs)
+    pnl_cont = pd.read_csv(folder.joinpath('pnl_continuous.csv'), **pnl_kwargs)
+    pnl_seg = pd.read_csv(folder.joinpath('pnl_seg.csv'), **pnl_kwargs)
+
+    res_cont = pd.read_csv(folder.joinpath('result_continuous.csv'), **result_kwargs)
+    res_seg = pd.read_csv(folder.joinpath('result_seg.csv'), **result_kwargs)
+    res_cont = res_cont[compare_items]
+    res_seg = res_seg[compare_items]
+
+    trade_comp = trade_cont.merge(trade_seg, left_index=True, right_index=True, how='outer', suffixes=('_cont','_seg'))
+    pnl_comp = pnl_cont.merge(pnl_seg, left_index=True, right_index=True, how='outer', suffixes=('_cont','_seg'))
+    res_comp = res_cont.merge(res_seg, left_index=True, right_index=True, how='outer', suffixes=('_cont','_seg'))
+
+    # trade differences
+    df = trade_comp[trade_comp.isnull().T.any()]
+    trade_diff_percent = len(df[df['direction_cont'].notnull()]) / len(trade_seg)
+
+    # pnl differences
+    df = pnl_comp[pnl_comp['net_pnl_cont'] != pnl_comp['net_pnl_seg']]
+    pnl_diff_percent = len(df) / len(pnl_seg)
+
+    res_dict = res_comp.iloc[0].to_dict()
+    res_dict['trade_diff_percent'] = trade_diff_percent
+    res_dict['pnl_diff_percent'] = pnl_diff_percent
+
+    return res_dict
