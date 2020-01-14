@@ -1,9 +1,11 @@
+from datetime import datetime
 from vnpy.app.cta_strategy.backtesting import BacktestingEngine
 from vnpy.app.cta_strategy.base import BacktestingMode
 
 class SegBacktestingEngine(BacktestingEngine):
     def __init__(self):
         super().__init__()
+        self.is_output = False
 
     def run_backtesting(self, real_start=None):
         """"""
@@ -42,3 +44,10 @@ class SegBacktestingEngine(BacktestingEngine):
             func(data)
 
         self.output("历史数据回放结束")
+
+    def output(self, msg):
+        """
+        Output message of backtesting engine.
+        """
+        if self.is_output:
+            print(f"{datetime.now()}\t{msg}")

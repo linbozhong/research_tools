@@ -1,15 +1,3 @@
-# 在本机未更新至2.0.8的情况下，使用vnpy2.0.8的回测逻辑
-import sys
-import os
-from pathlib import Path
-# new_version_path = Path(os.getenv('VNPY2.0.8'))
-new_version_path = Path(r'D:\vnpy-2.0.8')
-# new_version_path = Path(r'E:\vnpy\vnpy-2.0.8')
-sys.path.insert(0, str(new_version_path))
-# print(sys.path)
-# import vnpy
-# print(vnpy.__version__)
-
 import pandas as pd
 from typing import List, Tuple, Optional
 from datetime import datetime, timedelta
@@ -172,6 +160,7 @@ def single_backtest(
     end_date: datetime,
     real_start: datetime,
     strategy_class: type,
+    strategy_params: dict,
     is_last: bool = False
 ) -> Tuple[pd.DataFrame, pd.DataFrame, datetime]:
     """"""
@@ -193,7 +182,7 @@ def single_backtest(
         pricetick=pricetick,
         capital=capital,
     )
-    engine.add_strategy(strategy_class, {})
+    engine.add_strategy(strategy_class, strategy_params)
 
     # print(engine.vt_symbol, engine.start, engine.end, type(engine.start), type(engine.end))
     engine.load_data()
@@ -210,7 +199,7 @@ def single_backtest(
 
     # check the last trade closed excpet for the last seg contract
     if not is_last and trade_df.iloc[-1].offset != '平':
-        print(trade_df.iloc[-1])
+        # print(trade_df.iloc[-1])
         print("合约到期前交易无法闭合")
         return
 
@@ -315,7 +304,7 @@ def segment_backtest(
     folder_name = f"{commodity}_{interval}_{f(backtest_start)}{f(backtest_end)}_{strategy_name}_{params_id}"
 
     dom_df = get_dominant_in_periods(commodity, backtest_start, backtest_end)
-    print(dom_df)
+    # print(dom_df)
     start = backtest_start
     real_next_start = None
     pnl_dfs = []
@@ -332,7 +321,7 @@ def segment_backtest(
             
         # run backtest function
         # the open trade after sub-main day must be deleted.
-        res_tuple = single_backtest(vt_symbol, interval, capital, start, end, real_next_start, strategy_dict['turtle'], is_last)
+        res_tuple = single_backtest(vt_symbol, interval, capital, start, end, real_next_start, strategy_dict[strategy_name], strategy_params, is_last)
         if res_tuple:
             df_pnl, df_trade, prev_end_dt = res_tuple
             pnl_dfs.append(df_pnl)
@@ -340,9 +329,9 @@ def segment_backtest(
 
             # backward n trading days. Because backtest engine use n trading days to calculate init data. 
             # n must set to stretegy init data days so the backtest trading begin is one day after last trade day
-            print('last trade:', prev_end_dt)
+            # print('last trade:', prev_end_dt)
             start = get_pre_trading_date(prev_end_dt, 20).to_pydatetime()
-            print('new seg start:', start)
+            # print('new seg start:', start)
             real_next_start = prev_end_dt + timedelta(1)
             
             # save to verify result
@@ -402,3 +391,30 @@ def compare(folder: PurePath) -> dict:
     res_dict['pnl_diff_percent'] = pnl_diff_percent
 
     return res_dict
+
+
+def merge_result(
+    commodity: str,
+    interval: str,
+    strategy_name: str,
+    strategy_params: dict,
+    capital: int,
+    start: datetime,
+    end: datetime,
+    data_mode: str = 'main'
+):
+    name = f"{commodity}.{strategy_name}"
+    res_cont_tuple = continuous_backtest(commodity, data_mode, interval, strategy_name, strategy_params, capital, start, end)
+    res_seg_tuple = segment_backtest(commodity, interval, strategy_name, strategy_params, capital, start, end)
+    if not res_seg_tuple:
+        return
+    
+    res_cont = res_cont_tuple[3]
+    res_seg = res_seg_tuple[3]
+    # print(res_seg)
+    cont_new = {key + '_cnt': value for key, value in res_cont.items()}
+    seg_new = {key + '_seg': value for key, value in res_seg.items()}
+    cont_new.update(seg_new)
+    cont_new['name'] = name
+    print(f"Name:{name} Parms:{strategy_params}finised")
+    return cont_new
