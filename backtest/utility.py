@@ -1,14 +1,14 @@
 # 在本机未更新至2.0.8的情况下，使用vnpy2.0.8的回测逻辑
 import sys
+import os
 from pathlib import Path
-# new_version_path = Path(r'D:\vnpy-2.0.8')
-new_version_path = Path(r'E:\vnpy\vnpy-2.0.8')
+# new_version_path = Path(os.getenv('VNPY2.0.8'))
+new_version_path = Path(r'D:\vnpy-2.0.8')
+# new_version_path = Path(r'E:\vnpy\vnpy-2.0.8')
 sys.path.insert(0, str(new_version_path))
-# sys.path
-
-import vnpy
-print(vnpy.__version__)
-
+# print(sys.path)
+# import vnpy
+# print(vnpy.__version__)
 
 import pandas as pd
 from typing import List, Tuple, Optional
@@ -21,10 +21,10 @@ from vnpy.trader.object import BarData, TradeData
 from vnpy.trader.constant import Interval, Offset
 from vnpy.trader.database import database_manager
 from vnpy.trader.utility import extract_vt_symbol
-from vnpy.app.cta_strategy.backtesting import BacktestingEngine
 
 from boll_channel_strategy import BollChannelStrategy
 from turtle_signal_strategy import TurtleSignalStrategy
+from backtesting import SegBacktestingEngine
 
 strategy_dict = {
     'boll': BollChannelStrategy,
@@ -138,11 +138,11 @@ def get_dominant_in_periods(underlying: str, backtest_start: datetime, backtest_
     after = sel[sel['start'] > backtest_end]
 
     # 选出的合约如果变非主力的日期和回测开始日期相比，只剩几天（不够初始化历史数据）应该排除。
-    # 过滤天数：30天计算指标的历史数据 + 最少可交易7天（相当于1周交易天数）
+    # 过滤天数：20天计算指标的历史数据 + 最少可交易7天（相当于1周交易天数）
     after_first_idx = after.index.values[0] if not after.empty else len(sel)
     if not passed.empty:
         passed_closest_idx = passed.index.values[-1]
-        if passed.iloc[-1]['end'] - backtest_start < timedelta(days=37):
+        if passed.iloc[-1]['end'] - backtest_start < timedelta(days=27):
             passed_closest_idx += 1
     else:
         passed_closest_idx = 0
@@ -181,7 +181,7 @@ def single_backtest(
 
     real_end_date = end_date if is_last else end_date + timedelta(days=40)
 
-    engine = BacktestingEngine()
+    engine = SegBacktestingEngine()
     engine.set_parameters(
         vt_symbol=vt_symbol,
         interval=interval,
@@ -208,8 +208,9 @@ def single_backtest(
     # print('last trade:', last_trade_dt)
     trade_df = vt_trade_to_df(engine.get_all_trades())
 
-    # check is the last trade closed.
-    if trade_df.iloc[-1].offset != '平':
+    # check the last trade closed excpet for the last seg contract
+    if not is_last and trade_df.iloc[-1].offset != '平':
+        print(trade_df.iloc[-1])
         print("合约到期前交易无法闭合")
         return
 
@@ -263,7 +264,7 @@ def continuous_backtest(
     size = future_basic_data.loc[commodity]['size']
     pricetick = future_basic_data.loc[commodity]['pricetick']
 
-    engine = BacktestingEngine()
+    engine = SegBacktestingEngine()
     engine.set_parameters(
         vt_symbol=vt_symbol,
         interval=interval,
@@ -314,7 +315,7 @@ def segment_backtest(
     folder_name = f"{commodity}_{interval}_{f(backtest_start)}{f(backtest_end)}_{strategy_name}_{params_id}"
 
     dom_df = get_dominant_in_periods(commodity, backtest_start, backtest_end)
-    # print(dom_df)
+    print(dom_df)
     start = backtest_start
     real_next_start = None
     pnl_dfs = []
@@ -358,7 +359,7 @@ def segment_backtest(
     all_pnl_df.to_csv(get_output_path('pnl_seg.csv', folder_name))
     all_trade_df.to_csv(get_output_path('trade_seg.csv', folder_name))
 
-    engine = BacktestingEngine()
+    engine = SegBacktestingEngine()
     engine.capital = capital
     res_df = all_pnl_df.copy()
     res_dict = engine.calculate_statistics(df=res_df)

@@ -1,4 +1,11 @@
-def run_backtesting(self, real_start=None):
+from vnpy.app.cta_strategy.backtesting import BacktestingEngine
+from vnpy.app.cta_strategy.base import BacktestingMode
+
+class SegBacktestingEngine(BacktestingEngine):
+    def __init__(self):
+        super().__init__()
+
+    def run_backtesting(self, real_start=None):
         """"""
         if self.mode == BacktestingMode.BAR:
             func = self.new_bar
