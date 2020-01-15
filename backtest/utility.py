@@ -193,6 +193,11 @@ def single_backtest(
     if to_pop_list:
         [engine.trades.pop(trade_id) for trade_id in to_pop_list]
 
+    # check trade result after pop upkeep trade
+    if not engine.get_all_trades():
+        print("单段回测没有成交结果！")
+        return
+
     last_trade_dt = engine.get_all_trades()[-1].datetime
     # print('last trade:', last_trade_dt)
     trade_df = vt_trade_to_df(engine.get_all_trades())
@@ -200,7 +205,7 @@ def single_backtest(
     # check the last trade closed excpet for the last seg contract
     if not is_last and trade_df.iloc[-1].offset != '平':
         # print(trade_df.iloc[-1])
-        print("合约到期前交易无法闭合")
+        print("单端回测合约到期前交易无法闭合")
         return
 
     # calculate daily pnl
@@ -338,7 +343,7 @@ def segment_backtest(
             fname = f"pnl_{vt_symbol}-{f(start)}-{f(end)}.csv"
             df_pnl.to_csv(get_output_path(fname, folder_name, 'sub_result'))
         else:
-            print(f"策略：{strategy_name} 参数：{params_id} 存在单段回测交易无法闭合，无法保证分段回测准确性，退出分段回测！")
+            print(f"策略：{strategy_name} 参数：{params_id} 无法进行分段回测！")
             return
         
     all_pnl_df = pd.concat(pnl_dfs)
