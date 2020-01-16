@@ -253,8 +253,11 @@ def continuous_backtest(
     """"""
     vt_symbol = comodity_to_vt_symbol(commodity, data_mode)
     f = lambda x: x.strftime("%Y%m%d")
-    params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
-    folder_name = f"{commodity}_{interval}_{f(start)}{f(end)}_{strategy_name}_{params_id}"
+    # params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
+    # folder_name = f"{commodity}_{interval}_{f(start)}{f(end)}_{strategy_name}_{params_id}"
+    params_str = '.'.join([f"{k}_{v}" for k, v in strategy_params.items()]) if strategy_name else 'default'
+    folder_name = f"{commodity}_{strategy_name}_{params_str}"
+
     size = future_basic_data.loc[commodity]['size']
     pricetick = future_basic_data.loc[commodity]['pricetick']
 
@@ -305,8 +308,10 @@ def segment_backtest(
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
     """"""
     f = lambda x: x.strftime("%Y%m%d")
-    params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
-    folder_name = f"{commodity}_{interval}_{f(backtest_start)}{f(backtest_end)}_{strategy_name}_{params_id}"
+    # params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
+    # folder_name = f"{commodity}_{interval}_{f(backtest_start)}{f(backtest_end)}_{strategy_name}_{params_id}"
+    params_str = '.'.join([f"{k}_{v}" for k, v in strategy_params.items()]) if strategy_name else 'default'
+    folder_name = f"{commodity}_{strategy_name}_{params_str}"
 
     dom_df = get_dominant_in_periods(commodity, backtest_start, backtest_end)
     # print(dom_df)
@@ -408,7 +413,8 @@ def merge_result(
     end: datetime,
     data_mode: str = 'main'
 ):
-    name = f"{commodity}.{strategy_name}"
+    params_str = '.'.join([f"{k}_{v}" for k, v in strategy_params.items()]) if strategy_name else 'default'
+    name = f"{commodity}.{strategy_name}.{params_str}"
     res_cont_tuple = continuous_backtest(commodity, data_mode, interval, strategy_name, strategy_params, capital, start, end)
     res_seg_tuple = segment_backtest(commodity, interval, strategy_name, strategy_params, capital, start, end)
     if not res_seg_tuple:
