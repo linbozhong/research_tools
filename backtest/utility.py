@@ -143,13 +143,36 @@ def get_dominant_in_periods(underlying: str, backtest_start: datetime, backtest_
 def clear_open_trade_after_deadline(trades: List[TradeData], deadline: datetime) -> List[str]:
     to_pop_list = []
     ready = False
+    # ensure the switch day can trade.
+    deadline = deadline.replace(hour=23, minute=59, second=59)
+    print('deadline', deadline)
     for trade in trades:
+        print(trade.datetime, trade.direction, trade.vt_symbol, trade.offset, trade.price, trade.volume)
         if trade.datetime > deadline:
             if not ready and trade.offset == Offset.OPEN:
                 ready = True
             if ready:
                 to_pop_list.append(trade.vt_orderid)
     return to_pop_list
+
+
+def process_last_trade_dt(trade_dt: datetime) -> datetime:
+    day_start = dt_time(8)
+    day_end = dt_time(16)
+
+    night_b_start = dt_time(0)
+    night_b_end = dt_time(5)
+
+    # trade happend in day light
+    if day_start < trade_dt.time() < day_end:
+        trade_dt = trade_dt.replace(hour=20)
+    elif night_b_start <= trade_dt.time() < night_b_end:
+        trade_dt = trade_dt.replace(hour=8)
+    else:
+        trade_dt += timedelta(days=1)
+        trade_dt = trade_dt.replace(hour=8)
+
+    return trade_dt - timedelta(back_days)
 
 
 def single_backtest(
@@ -348,7 +371,7 @@ def segment_backtest(
             fname = f"pnl_{vt_symbol}-{f(start)}-{f(end)}.csv"
             df_pnl.to_csv(get_output_path(fname, folder_name, 'sub_result'))
         else:
-            print(f"策略：{strategy_name} 参数：{params_id} 无法进行分段回测！")
+            print(f"策略：{folder_name}无法进行分段回测！")
             return
         
     all_pnl_df = pd.concat(pnl_dfs)
