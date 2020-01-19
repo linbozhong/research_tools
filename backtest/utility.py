@@ -144,8 +144,8 @@ def clear_open_trade_after_deadline(trades: List[TradeData], deadline: datetime)
     to_pop_list = []
     ready = False
     # ensure the switch day can trade.
-    deadline = deadline.replace(hour=23, minute=59, second=59)
-    print('deadline', deadline)
+    # deadline = deadline.replace(hour=23, minute=59, second=59)
+    print('new seg deadline', deadline)
     for trade in trades:
         print(trade.datetime, trade.direction, trade.vt_symbol, trade.offset, trade.price, trade.volume)
         if trade.datetime > deadline:
@@ -163,16 +163,15 @@ def process_last_trade_dt(trade_dt: datetime) -> datetime:
     night_b_start = dt_time(0)
     night_b_end = dt_time(5)
 
-    # trade happend in day light
     if day_start < trade_dt.time() < day_end:
-        trade_dt = trade_dt.replace(hour=20)
+        trade_dt = trade_dt.replace(hour=16)
     elif night_b_start <= trade_dt.time() < night_b_end:
         trade_dt = trade_dt.replace(hour=8)
     else:
         trade_dt += timedelta(days=1)
         trade_dt = trade_dt.replace(hour=8)
 
-    return trade_dt - timedelta(back_days)
+    return trade_dt
 
 
 def single_backtest(
@@ -191,7 +190,8 @@ def single_backtest(
     size = future_basic_data.loc[commodity]['size']
     pricetick = future_basic_data.loc[commodity]['pricetick']
 
-    real_end_date = end_date if is_last else end_date + timedelta(days=40)
+    end_date = end_date.replace(hour=16)
+    real_end_date = end_date if is_last else datetime.now()
 
     engine = SegBacktestingEngine()
     engine.set_parameters(
@@ -222,7 +222,6 @@ def single_backtest(
         return
 
     last_trade_dt = engine.get_all_trades()[-1].datetime
-    # print('last trade:', last_trade_dt)
     trade_df = vt_trade_to_df(engine.get_all_trades())
 
     # check the last trade closed excpet for the last seg contract
@@ -235,7 +234,10 @@ def single_backtest(
     pnl_df = engine.calculate_result()
 
     # remove daily pnl after last trade if last trade happend after end date
-    end_dt = last_trade_dt if last_trade_dt > end_date else end_date
+    print('last trade:', last_trade_dt, 'end_date:', end_date)
+    print('processed last trade:', process_last_trade_dt(last_trade_dt))
+    end_dt = process_last_trade_dt(last_trade_dt) if last_trade_dt > end_date else end_date
+    print('new start:', end_dt)
     pnl_df = pnl_df[:end_dt.date()].copy()
 
     return pnl_df, trade_df, end_dt
@@ -362,10 +364,8 @@ def segment_backtest(
 
             # backward n trading days. Because backtest engine use n trading days to calculate init data. 
             # n must set to stretegy init data days so the backtest trading begin is one day after last trade day
-            # print('last trade:', prev_end_dt)
             start = get_pre_trading_date(prev_end_dt, 20).to_pydatetime()
-            # print('new seg start:', start)
-            real_next_start = prev_end_dt + timedelta(1)
+            real_next_start = prev_end_dt
             
             # save to verify result
             fname = f"pnl_{vt_symbol}-{f(start)}-{f(end)}.csv"
