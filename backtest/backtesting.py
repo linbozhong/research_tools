@@ -27,6 +27,8 @@ class SegBacktestingEngine(BacktestingEngine):
                         break
             else:
                 if data.datetime >= real_start:
+                    print('backtest real start', real_start)
+                    print('backtest break', data.datetime)
                     break
 
             self.datetime = data.datetime
@@ -40,6 +42,7 @@ class SegBacktestingEngine(BacktestingEngine):
         self.output("开始回放历史数据")
 
         # Use the rest of history data for running backtesting
+        print('backtest start:', self.history_data[ix].datetime)
         for data in self.history_data[ix:]:
             func(data)
 
