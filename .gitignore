@@ -112,3 +112,4 @@ analyze_script/*.csv
 # !backtest/trading_date.csv
 backtest/.vntrader/vt_setting.json
 backtest/result/
+backtest/test.ipynb

@@ -14,6 +14,16 @@ from boll_channel_strategy import BollChannelStrategy
 from turtle_signal_strategy import TurtleSignalStrategy
 from backtesting import SegBacktestingEngine
 
+DAY_START = dt_time(8)
+DAY_END = dt_time(16)
+
+NIGHT_A_START = dt_time(20)
+NIGHT_A_END = dt_time(23, 59, 59)
+
+NIGHT_B_START = dt_time(0)
+NIGHT_B_END = dt_time(5)
+
+
 strategy_dict = {
     'boll': BollChannelStrategy,
     'turtle': TurtleSignalStrategy
@@ -141,19 +151,44 @@ def get_dominant_in_periods(underlying: str, backtest_start: datetime, backtest_
 
 
 def clear_open_trade_after_deadline(trades: List[TradeData], deadline: datetime) -> List[str]:
-    to_pop_list = []
-    ready = False
-    # ensure the switch day can trade.
-    # deadline = deadline.replace(hour=23, minute=59, second=59)
+    over_deadline = False
+    last_trade = None
+    rm_start_idx = 0
+    pop_list = []
     print('new seg deadline', deadline)
-    for trade in trades:
+
+    for idx, trade in enumerate(trades):
         print(trade.datetime, trade.direction, trade.vt_symbol, trade.offset, trade.price, trade.volume)
         if trade.datetime > deadline:
-            if not ready and trade.offset == Offset.OPEN:
-                ready = True
-            if ready:
-                to_pop_list.append(trade.vt_orderid)
-    return to_pop_list
+            if not over_deadline:
+                # if first trade after deadline is open. exit directly.
+                if trade.offset == Offset.OPEN:
+                    rm_start_idx = idx
+                    break
+                over_deadline = True
+                last_trade = trade
+            else:
+                # next open trade and pre close is not in the same trading time
+                if not is_same_trading_period(trade.datetime, last_trade.datetime) and trade.offset == Offset.OPEN:
+                    rm_start_idx = idx
+                    break
+                else:
+                    last_trade = trade
+    if rm_start_idx:
+        pop_list = [trade.vt_tradeid for trade in trades[rm_start_idx:]]
+    return pop_list
+
+
+def is_same_trading_period(new_time: datetime, old_time: datetime) -> bool:
+    if DAY_START < old_time.time() < DAY_END:
+        return new_time.date() == old_time.date() and new_time.time() < DAY_END
+    elif NIGHT_A_START < old_time.time() < NIGHT_A_END:
+        old_time_next_day = old_time + timedelta(1)
+        same_a = new_time.date() == old_time.date() and NIGHT_A_START < new_time.time() <= NIGHT_A_END
+        same_b = new_time.date() == old_time_next_day.date() and NIGHT_B_START < new_time.time() < NIGHT_B_END
+        return same_a or same_b
+    else:
+        return new_time.date() == old_time.date() and new_time.time() <= NIGHT_B_END
 
 
 def process_last_trade_dt(trade_dt: datetime) -> datetime:
@@ -212,13 +247,15 @@ def single_backtest(
     engine.run_backtesting(real_start)
 
     # before calculate daily pnl, clear open trade after end date
-    to_pop_list = clear_open_trade_after_deadline(engine.get_all_trades(), end_date)
-    if to_pop_list:
-        [engine.trades.pop(trade_id) for trade_id in to_pop_list]
+    pop_list = clear_open_trade_after_deadline(engine.get_all_trades(), end_date)
+    if pop_list:
+        [engine.trades.pop(trade_id) for trade_id in pop_list]
 
     # check trade result after pop upkeep trade
     if not engine.get_all_trades():
+        print('poplist:', pop_list)
         print("单段回测没有成交结果！")
+        print(engine.get_all_trades())
         return
 
     last_trade_dt = engine.get_all_trades()[-1].datetime
@@ -431,11 +468,13 @@ def merge_result(
     interval: str,
     strategy_name: str,
     strategy_params: dict,
-    capital: int,
     start: datetime,
     end: datetime,
+    capital: Optional[int]=None,
     data_mode: str = 'main'
 ):
+    if capital is None:
+        capital = future_basic_data.loc[commodity]['backtest_capital']
     params_str = '.'.join([f"{k}_{v}" for k, v in strategy_params.items()]) if strategy_name else 'default'
     name = f"{commodity}.{strategy_name}.{params_str}"
     res_cont_tuple = continuous_backtest(commodity, data_mode, interval, strategy_name, strategy_params, capital, start, end)
