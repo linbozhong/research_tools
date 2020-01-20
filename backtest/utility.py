@@ -155,10 +155,10 @@ def clear_open_trade_after_deadline(trades: List[TradeData], deadline: datetime)
     last_trade = None
     rm_start_idx = 0
     pop_list = []
-    print('new seg deadline', deadline)
+    # print('new seg deadline', deadline)
 
     for idx, trade in enumerate(trades):
-        print(trade.datetime, trade.direction, trade.vt_symbol, trade.offset, trade.price, trade.volume)
+        # print(trade.datetime, trade.direction, trade.vt_symbol, trade.offset, trade.price, trade.volume)
         if trade.datetime > deadline:
             if not over_deadline:
                 # if first trade after deadline is open. exit directly.
@@ -185,27 +185,20 @@ def is_same_trading_period(new_time: datetime, old_time: datetime) -> bool:
     elif NIGHT_A_START < old_time.time() < NIGHT_A_END:
         old_time_next_day = old_time + timedelta(1)
         same_a = new_time.date() == old_time.date() and NIGHT_A_START < new_time.time() <= NIGHT_A_END
-        same_b = new_time.date() == old_time_next_day.date() and NIGHT_B_START < new_time.time() < NIGHT_B_END
+        same_b = new_time.date() == old_time_next_day.date() and NIGHT_B_START <= new_time.time() < NIGHT_B_END
         return same_a or same_b
     else:
         return new_time.date() == old_time.date() and new_time.time() <= NIGHT_B_END
 
 
 def process_last_trade_dt(trade_dt: datetime) -> datetime:
-    day_start = dt_time(8)
-    day_end = dt_time(16)
-
-    night_b_start = dt_time(0)
-    night_b_end = dt_time(5)
-
-    if day_start < trade_dt.time() < day_end:
+    if DAY_START < trade_dt.time() < DAY_END:
         trade_dt = trade_dt.replace(hour=16)
-    elif night_b_start <= trade_dt.time() < night_b_end:
+    elif NIGHT_B_START <= trade_dt.time() < NIGHT_B_END:
         trade_dt = trade_dt.replace(hour=8)
     else:
         trade_dt += timedelta(days=1)
         trade_dt = trade_dt.replace(hour=8)
-
     return trade_dt
 
 
@@ -253,9 +246,7 @@ def single_backtest(
 
     # check trade result after pop upkeep trade
     if not engine.get_all_trades():
-        print('poplist:', pop_list)
         print("单段回测没有成交结果！")
-        print(engine.get_all_trades())
         return
 
     last_trade_dt = engine.get_all_trades()[-1].datetime
@@ -271,10 +262,10 @@ def single_backtest(
     pnl_df = engine.calculate_result()
 
     # remove daily pnl after last trade if last trade happend after end date
-    print('last trade:', last_trade_dt, 'end_date:', end_date)
-    print('processed last trade:', process_last_trade_dt(last_trade_dt))
+    # print('last trade:', last_trade_dt, 'end_date:', end_date)
+    # print('processed last trade:', process_last_trade_dt(last_trade_dt))
     end_dt = process_last_trade_dt(last_trade_dt) if last_trade_dt > end_date else end_date
-    print('new start:', end_dt)
+    # print('new start:', end_dt)
     pnl_df = pnl_df[:end_dt.date()].copy()
 
     return pnl_df, trade_df, end_dt
@@ -289,6 +280,7 @@ def get_pre_trading_date(dt: datetime, n: int) -> datetime:
     s = get_trading_date()
     return s[s <= dt].iloc[-n]
 
+
 def get_output_path(filename: str, *folder_args) -> PurePath:
     folder = Path.cwd().joinpath('result', *folder_args)
     if not folder.exists():
@@ -300,6 +292,20 @@ def comodity_to_vt_symbol(commodity: str, data_mode: str) -> str:
     exchange = future_basic_data.loc[commodity]['exchange']
     digit = '888' if data_mode == 'main' else '99'
     return f"{commodity.upper()}{digit}.{exchange}"
+
+
+def merge_duplicate_date(df):
+    """Groud process function"""
+    if len(df) == 1:
+        return df.iloc[-1:].copy()
+    else:
+        add_items = ['trade_count', 'turnover', 'commission', 'slippage', 'trading_pnl', 'holding_pnl', 'total_pnl', 'net_pnl']
+        df2 = df.iloc[-1:].copy()
+        last_index = df2.iloc[0].name
+        df2.loc[last_index, 'start_pos'] = df.iloc[0]['start_pos']
+        for item in add_items:
+            df2.loc[last_index, item] = df[item].sum()
+        return df2
 
 
 def continuous_backtest(
@@ -314,7 +320,7 @@ def continuous_backtest(
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
     """"""
     vt_symbol = comodity_to_vt_symbol(commodity, data_mode)
-    f = lambda x: x.strftime("%Y%m%d")
+    # f = lambda x: x.strftime("%Y%m%d")
     # params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
     # folder_name = f"{commodity}_{interval}_{f(start)}{f(end)}_{strategy_name}_{params_id}"
     params_str = '.'.join([f"{k}_{v}" for k, v in strategy_params.items()]) if strategy_name else 'default'
@@ -399,12 +405,11 @@ def segment_backtest(
             pnl_dfs.append(df_pnl)
             trade_dfs.append(df_trade)
 
-            # backward n trading days. Because backtest engine use n trading days to calculate init data. 
-            # n must set to stretegy init data days so the backtest trading begin is one day after last trade day
+            # backward n trading days to init history data
             start = get_pre_trading_date(prev_end_dt, 20).to_pydatetime()
             real_next_start = prev_end_dt
             
-            # save to verify result
+            # save seg backtest result to verify
             fname = f"pnl_{vt_symbol}-{f(start)}-{f(end)}.csv"
             df_pnl.to_csv(get_output_path(fname, folder_name, 'sub_result'))
         else:
@@ -412,6 +417,8 @@ def segment_backtest(
             return
         
     all_pnl_df = pd.concat(pnl_dfs)
+    all_pnl_df = all_pnl_df.groupby(all_pnl_df.index, group_keys=False).apply(merge_duplicate_date)
+
     all_trade_df = pd.concat(trade_dfs)
     all_trade_df = trade_zh_to_en(all_trade_df)
 
