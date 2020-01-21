@@ -239,6 +239,9 @@ def single_backtest(
     engine.load_data()
     engine.run_backtesting(real_start)
 
+    # from copy import copy
+    # copy_trades = copy(engine.get_all_trades())
+
     # before calculate daily pnl, clear open trade after end date
     pop_list = clear_open_trade_after_deadline(engine.get_all_trades(), end_date)
     if pop_list:
@@ -247,6 +250,7 @@ def single_backtest(
     # check trade result after pop upkeep trade
     if not engine.get_all_trades():
         print("单段回测没有成交结果！")
+        # print(copy_trades)
         return
 
     last_trade_dt = engine.get_all_trades()[-1].datetime
@@ -254,8 +258,10 @@ def single_backtest(
 
     # check the last trade closed excpet for the last seg contract
     if not is_last and trade_df.iloc[-1].offset != '平':
-        # print(trade_df.iloc[-1])
         print("单端回测合约到期前交易无法闭合")
+        # print('None closed:', last_trade_dt, vt_symbol)
+        # for trade in copy_trades:
+        #     print(trade.datetime, trade.direction, trade.vt_symbol, trade.offset, trade.price, trade.volume)
         return
 
     # calculate daily pnl
