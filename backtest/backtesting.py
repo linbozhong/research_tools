@@ -54,3 +54,13 @@ class SegBacktestingEngine(BacktestingEngine):
         """
         if self.is_output:
             print(f"{datetime.now()}\t{msg}")
+
+
+class ResearchBacktestingEngine(BacktestingEngine):
+    def __init__(self):
+        super().__init__()
+        self.is_output = False
+
+    def output(self, msg):
+        if self.is_output:
+            print(f"{datetime.now()}\t{msg}")

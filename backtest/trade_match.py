@@ -140,7 +140,7 @@ def short2cover(df, capital):
     return result
 
 
-def statistics_trade_result(df, capital, show_chart=True):
+def statistics_trade_result(df, capital, show_chart=True, output=True):
     """"""
     end_balance = df["balance"].iloc[-1]
     max_drawdown = df["drawdown"].min()
@@ -170,34 +170,43 @@ def statistics_trade_result(df, capital, show_chart=True):
     total_return = (end_balance / capital - 1) * 100
     return_drawdown_ratio = -total_return / max_ddpercent
 
-    output(f"起始资金：\t{capital:,.2f}")
-    output(f"结束资金：\t{end_balance:,.2f}")
-    output(f"总收益率：\t{total_return:,.2f}%")
-    output(f"最大回撤: \t{max_drawdown:,.2f}")
-    output(f"百分比最大回撤: {max_ddpercent:,.2f}%")
-    output(f"收益回撤比：\t{return_drawdown_ratio:,.2f}")
+    result_dict = {
+        "end_balance": end_balance,
+        "max_drawdown": max_drawdown,
+        "max_ddpercent": max_ddpercent,
+        "winning_rate": winning_rate,
+        "win_loss_pnl_ratio": win_loss_pnl_ratio
+    }
 
-    output(f"总成交次数:\t{trade_count}")
-    output(f"盈利成交次数:\t{win_count}")
-    output(f"亏损成交次数:\t{loss_count}")
-    output(f"胜率:\t\t{winning_rate:,.2f}")
-    output(f"盈亏比:\t\t{win_loss_pnl_ratio:,.2f}")
+    if output:
+        output(f"起始资金：\t{capital:,.2f}")
+        output(f"结束资金：\t{end_balance:,.2f}")
+        output(f"总收益率：\t{total_return:,.2f}%")
+        output(f"最大回撤: \t{max_drawdown:,.2f}")
+        output(f"百分比最大回撤: {max_ddpercent:,.2f}%")
+        output(f"收益回撤比：\t{return_drawdown_ratio:,.2f}")
 
-    output(f"平均每笔盈亏:\t{pnl_medio:,.2f}")
-    output(f"平均持仓小时:\t{duration_medio:,.2f}")
-    output(f"平均每笔手续费:\t{commission_medio:,.2f}")
-    output(f"平均每笔滑点:\t{slipping_medio:,.2f}")
+        output(f"总成交次数:\t{trade_count}")
+        output(f"盈利成交次数:\t{win_count}")
+        output(f"亏损成交次数:\t{loss_count}")
+        output(f"胜率:\t\t{winning_rate:,.2f}")
+        output(f"盈亏比:\t\t{win_loss_pnl_ratio:,.2f}")
 
-    output(f"总盈利金额:\t{win_amount:,.2f}")
-    output(f"盈利交易均值:\t{win_pnl_medio:,.2f}")
-    output(f"盈利持仓小时:\t{win_duration_medio:,.2f}")
+        output(f"平均每笔盈亏:\t{pnl_medio:,.2f}")
+        output(f"平均持仓小时:\t{duration_medio:,.2f}")
+        output(f"平均每笔手续费:\t{commission_medio:,.2f}")
+        output(f"平均每笔滑点:\t{slipping_medio:,.2f}")
 
-    output(f"总亏损金额:\t{loss_amount:,.2f}")
-    output(f"亏损交易均值:\t{loss_pnl_medio:,.2f}")
-    output(f"亏损持仓小时:\t{loss_duration_medio:,.2f}")
+        output(f"总盈利金额:\t{win_amount:,.2f}")
+        output(f"盈利交易均值:\t{win_pnl_medio:,.2f}")
+        output(f"盈利持仓小时:\t{win_duration_medio:,.2f}")
+
+        output(f"总亏损金额:\t{loss_amount:,.2f}")
+        output(f"亏损交易均值:\t{loss_pnl_medio:,.2f}")
+        output(f"亏损持仓小时:\t{loss_duration_medio:,.2f}")
 
     if not show_chart:
-        return
+        return result_dict
 
     plt.figure(figsize=(10, 12))
 
@@ -236,10 +245,10 @@ def exhaust_trade_result(
     """
 
     total_trades = generate_trade_df(trades, size, rate, slippage, capital)
-    statistics_trade_result(total_trades, capital)
+    res = statistics_trade_result(total_trades, capital, show_chart=False, output=False)
 
     if not show_long_short_condition:
-        return
+        return res
     long_trades = buy2sell(total_trades, capital)
     short_trades = short2cover(total_trades, capital)
 
