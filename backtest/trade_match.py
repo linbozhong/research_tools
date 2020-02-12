@@ -175,7 +175,8 @@ def statistics_trade_result(df, capital, show_chart=True, output=True):
         "max_drawdown": max_drawdown,
         "max_ddpercent": max_ddpercent,
         "winning_rate": winning_rate,
-        "win_loss_pnl_ratio": win_loss_pnl_ratio
+        "win_loss_pnl_ratio": win_loss_pnl_ratio,
+        "trade_count": trade_count
     }
 
     if output:
