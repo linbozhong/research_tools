@@ -329,7 +329,7 @@ def continuous_backtest(
     # f = lambda x: x.strftime("%Y%m%d")
     # params_id = ''.join(list(map(str, strategy_params.values()))) if strategy_params else 'default'
     # folder_name = f"{commodity}_{interval}_{f(start)}{f(end)}_{strategy_name}_{params_id}"
-    params_str = '.'.join([f"{k}_{v}" for k, v in strategy_params.items()]) if strategy_name else 'default'
+    params_str = '.'.join([f"{k}_{v}" for k, v in strategy_params.items()]) if strategy_params else 'default'
     folder_name = f"{commodity}_{strategy_name}_{params_str}"
 
     size = future_basic_data.loc[commodity]['size']
