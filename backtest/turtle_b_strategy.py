@@ -18,6 +18,7 @@ class TurtleBStrategy(CtaTemplate):
     entry_window = 50
     exit_window = 20
     atr_window = 20
+    stop_multiple = 2
     fixed_size = 1
 
     entry_up = 0
@@ -31,7 +32,7 @@ class TurtleBStrategy(CtaTemplate):
     long_stop = 0
     short_stop = 0
 
-    parameters = ["entry_window", "exit_window", "atr_window", "fixed_size"]
+    parameters = ["entry_window", "exit_window", "atr_window", "fixed_size", "stop_multiple"]
     variables = ["entry_up", "entry_down", "exit_up", "exit_down", "atr_value"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -82,9 +83,9 @@ class TurtleBStrategy(CtaTemplate):
         if not self.pos:
             self.entry_up, self.entry_down = self.am.donchian(self.entry_window)
 
-            self.close_ma = self.am.sma(50)
-            self.entry_up += self.close_ma * 0.002
-            self.entry_down -= self.close_ma * 0.002
+            # self.close_ma = self.am.sma(50)
+            # self.entry_up += self.close_ma * 0.002
+            # self.entry_down -= self.close_ma * 0.002
 
         self.exit_up, self.exit_down = self.am.donchian(self.exit_window)
         
@@ -116,10 +117,10 @@ class TurtleBStrategy(CtaTemplate):
         """
         if trade.direction == Direction.LONG:
             self.long_entry = trade.price
-            self.long_stop = self.long_entry - 2 * self.atr_value
+            self.long_stop = self.long_entry - self.stop_multiple * self.atr_value
         else:
             self.short_entry = trade.price
-            self.short_stop = self.short_entry + 2 * self.atr_value
+            self.short_stop = self.short_entry + self.stop_multiple * self.atr_value
 
     def on_order(self, order: OrderData):
         """

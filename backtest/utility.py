@@ -294,6 +294,13 @@ def get_output_path(filename: str, *folder_args) -> PurePath:
     return folder.joinpath(folder, filename)
 
 
+def get_output_folder(*args) -> PurePath:
+    folder = Path.cwd().joinpath('result', *args)
+    if not folder.exists():
+        folder.mkdir(parents=True)
+    return folder
+
+
 def comodity_to_vt_symbol(commodity: str, data_mode: str) -> str:
     exchange = future_basic_data.loc[commodity]['exchange']
     digit = '888' if data_mode == 'main' else '99'
