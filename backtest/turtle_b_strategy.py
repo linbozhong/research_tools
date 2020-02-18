@@ -100,14 +100,22 @@ class TurtleBStrategy(CtaTemplate):
             self.send_buy_orders(self.entry_up)
             self.send_short_orders(self.entry_down)
         elif self.pos > 0:
+            # original system
+            # sell_price = max(self.long_stop, self.exit_down)
+            # self.sell(sell_price, abs(self.pos), True)
 
-            sell_price = max(self.long_stop, self.exit_down)
-            self.sell(sell_price, abs(self.pos), True)
+            # inverse system
+            # 有多头要卖出，等向上再卖出
+            self.sell(self.exit_up, abs(self.pos), False)
 
         elif self.pos < 0:
+            # original system
+            # cover_price = min(self.short_stop, self.exit_up)
+            # self.cover(cover_price, abs(self.pos), True)
 
-            cover_price = min(self.short_stop, self.exit_up)
-            self.cover(cover_price, abs(self.pos), True)
+            # inverse system
+            # 有空头要买回，等向下再补回
+            self.cover(self.exit_down, abs(self.pos), False)
 
         self.put_event()
 
@@ -117,10 +125,10 @@ class TurtleBStrategy(CtaTemplate):
         """
         if trade.direction == Direction.LONG:
             self.long_entry = trade.price
-            self.long_stop = self.long_entry - self.stop_multiple * self.atr_value
+            # self.long_stop = self.long_entry - self.stop_multiple * self.atr_value
         else:
             self.short_entry = trade.price
-            self.short_stop = self.short_entry + self.stop_multiple * self.atr_value
+            # self.short_stop = self.short_entry + self.stop_multiple * self.atr_value
 
     def on_order(self, order: OrderData):
         """
@@ -136,8 +144,17 @@ class TurtleBStrategy(CtaTemplate):
 
     def send_buy_orders(self, price):
         """"""
-        self.buy(price, self.fixed_size, True)
+        # original system
+        # self.buy(price, self.fixed_size, True)
+
+        # invere system
+        self.short(price, self.fixed_size, False)
+
 
     def send_short_orders(self, price):
         """"""
-        self.short(price, self.fixed_size, True)
+        # original system
+        # self.short(price, self.fixed_size, True)
+
+        # inverse system
+        self.buy(price, self.fixed_size, False)

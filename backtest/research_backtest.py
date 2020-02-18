@@ -77,6 +77,9 @@ def run_research_backtest(
     size = future_basic_data.loc[commodity]['size']
     pricetick = future_basic_data.loc[commodity]['pricetick']
     capital = future_basic_data.loc[commodity]['backtest_capital'] * 2
+
+    slippage = pricetick
+    slippage = 0
     
     engine = ResearchBacktestingEngine()
     engine.set_parameters(
@@ -85,7 +88,7 @@ def run_research_backtest(
         start=start,
         end=end,
         rate=rate,
-        slippage=pricetick,
+        slippage=slippage,
         size=size,
         pricetick=pricetick,
         capital=capital
@@ -100,7 +103,7 @@ def run_research_backtest(
     last_trade = trades[-1]
     if last_trade.offset == Offset.OPEN:
         engine.trades.pop(last_trade.vt_tradeid)
-        
+
     if trade_output:
         fn = f'{strategy_name}.{commodity}.{params_str}.{custom_note}.trades.csv'
         trade_df = vt_trade_to_df(engine.get_all_trades())
@@ -119,7 +122,7 @@ def run_research_backtest(
         fig.savefig(get_output_path(img_name, 'pnl_curves'))
 
     trades = engine.trades
-    trade_res = exhaust_trade_result(trades, size, rate, pricetick, capital, show_long_short_condition=False)
+    trade_res = exhaust_trade_result(trades, size, rate, slippage, capital, show_long_short_condition=False)
 
     d = {
         'commodity': commodity,
@@ -142,7 +145,8 @@ def run_research_backtest(
         'trade_count': trade_res['trade_count'],
         'daily_trade_count': day_res['daily_trade_count'],
         'winning_rate': trade_res['winning_rate'],
-        'win_loss_pnl_ratio': trade_res['win_loss_pnl_ratio']
+        'win_loss_pnl_ratio': trade_res['win_loss_pnl_ratio'],
+        'pos_duration': trade_res['pos_duration']
     }
     
     print(f"{strategy_name}.{commodity}.{params_str}-回测完成")
@@ -209,16 +213,18 @@ def analyze_multi_bt(filename: str) -> dict:
     res_dict['sharpe_mean'] = df['sharpe_ratio'].mean()
     res_dict['win_mean'] = df['winning_rate'].mean()
     res_dict['win_to_loss'] = df['win_loss_pnl_ratio'].mean()
+    res_dict['cost_ratio'] = df['slippage'].sum() / abs(df['net_pnl'].sum())
     
     return res_dict
 
 if __name__ == "__main__":
-    strategy_name = 'turtle'
-    note_str = 'atr_stop'
+    strategy_name = 'turtle_inverse'
+    note_str = 'inv_trade'
 
     turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("exit_window", 5, 50, 5)
-    turtle_gen.add_parameter("stop_multiple", 7)
+    turtle_gen.add_parameter("entry_window", 50)
+    turtle_gen.add_parameter("exit_window", 10, 50, 5)
+    # turtle_gen.add_parameter("stop_multiple", 10)
     turtle_settings = turtle_gen.generate_setting()
 
     # print(turtle_settings)
