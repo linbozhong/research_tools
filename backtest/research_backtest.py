@@ -1,6 +1,7 @@
 # 用于多进程，jupyter notebook在win环境下无法运行多进程
 import sys
 import os
+import numpy as np
 from pathlib import Path
 new_version_path = Path(os.getenv('VNPY2.0.8'))
 sys.path.insert(0, str(new_version_path))
@@ -59,10 +60,11 @@ def run_research_backtest(
     commodity: str,
     start: datetime,
     end: datetime,
-    trade_output = False,
-    curve_output = False,
+    trade_output: bool = False,
+    curve_output: bool = False,
     strategy_params: Optional[dict] = None,
-    custom_note: str = 'default'
+    custom_note: str = 'default',
+    empty_cost: bool = False
 ) -> dict:
     """Run single commodity backtest"""
     params_str = params_to_str(strategy_params)
@@ -77,9 +79,11 @@ def run_research_backtest(
     size = future_basic_data.loc[commodity]['size']
     pricetick = future_basic_data.loc[commodity]['pricetick']
     capital = future_basic_data.loc[commodity]['backtest_capital'] * 2
+    com_slip_ratio = future_basic_data.loc[commodity]['com_slip_ratio']
 
-    slippage = pricetick
-    slippage = 0
+    slippage = pricetick * (1 + com_slip_ratio)
+    if empty_cost:
+        slippage = 0
     
     engine = ResearchBacktestingEngine()
     engine.set_parameters(
@@ -152,7 +156,12 @@ def run_research_backtest(
     print(f"{strategy_name}.{commodity}.{params_str}-回测完成")
     return d
 
-def batch_run(strategy_name: str, params: dict, note_str: str = 'default'):
+def batch_run(
+    strategy_name: str,
+    params: dict,
+    note_str: str = 'default',
+    empty_cost: bool = False
+    ):
     """Run all commodities of portfolio"""
     # commodities = [
     #     "cu", "al", "zn"
@@ -172,26 +181,38 @@ def batch_run(strategy_name: str, params: dict, note_str: str = 'default'):
         start = get_hot_start(commodity)
         end = datetime(2019, 12, 1)
 
-        res = run_research_backtest(commodity, start, end, strategy_params=params)
+        res = run_research_backtest(commodity, start, end, strategy_params=params, empty_cost=empty_cost)
         res_list.append(res)
         columns = list(res.keys())
 
     params = params_to_str(params)
     file_name = f'{strategy_name}@{params}@{note_str}.csv'
     df = pd.DataFrame(res_list, columns=columns)
-    df.to_csv(get_output_path(file_name, 'multi_backtest'), index=False)
+    df.to_csv(get_output_path(file_name, 'multi_backtest', note_str), index=False)
 
-def analyze_multi_bt(filename: str) -> dict:
+def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     test_name = filename.rstrip('.csv')
     
     folder = 'multi_backtest'
-    file_path = get_output_path(filename, folder)
+    if note == 'default':
+        file_path = get_output_path(filename, folder)
+    else:
+        file_path = get_output_path(filename, folder, note)
+
     df = pd.read_csv(file_path)
 
-    balance_not_same = df['day_end_balance'].map(lambda x: round(x)) != df['trade_end_balance'].map(lambda x: round(x))
-    if len(df[balance_not_same]) > 0:
-        print("Trade end balance is not same with Day end balance")
-        print(df[balance_not_same])
+    balance_diff = df['day_end_balance'].map(lambda x: round(x)) - df['trade_end_balance'].map(lambda x: round(x))
+    balance_not_same = np.abs(balance_diff) > 10
+    if sum(balance_not_same) > 0:
+        print(sum(balance_not_same))
+        print(f"{test_name} Trade end balance is not same with Day end balance")
+        # print(df[balance_not_same])
+
+    balance_negitive = df['day_end_balance'] < 0
+    neg_num = sum(balance_negitive)
+    # print('neg number:', neg_num)
+    if neg_num > 0:
+        print(f"{test_name} End balance is negitive")
 
     # stats_items = ['day_max_ddpercent', 'total_return', 'annual_return', 'sharpe_ratio', 'return_drawdown_ratio',
     #                'trade_count', 'winning_rate', 'win_loss_pnl_ratio']
@@ -214,18 +235,63 @@ def analyze_multi_bt(filename: str) -> dict:
     res_dict['win_mean'] = df['winning_rate'].mean()
     res_dict['win_to_loss'] = df['win_loss_pnl_ratio'].mean()
     res_dict['cost_ratio'] = df['slippage'].sum() / abs(df['net_pnl'].sum())
+    res_dict['pos_duration'] = df['pos_duration'].mean()
     
     return res_dict
 
 if __name__ == "__main__":
-    strategy_name = 'turtle_inverse'
-    note_str = 'inv_trade'
+    strategy_name = 'turtle'
+    empty_cost = False
+    note_str = 'high_entry_exit'
 
     turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("entry_window", 50)
-    turtle_gen.add_parameter("exit_window", 10, 50, 5)
-    # turtle_gen.add_parameter("stop_multiple", 10)
+    turtle_gen.add_parameter("entry_window", 60, 80, 10)
+    turtle_gen.add_parameter("exit_window", 5, 40, 5)
+    turtle_gen.add_parameter("stop_multiple", 10)
     turtle_settings = turtle_gen.generate_setting()
+
+    # turtle_settings = [
+    #     {
+    #         'entry_window': 10, 
+    #         'exit_window': 5,
+    #         'stop_multiple': 7
+    #     },
+    #     {
+    #         'entry_window': 20, 
+    #         'exit_window': 10,
+    #         'stop_multiple': 7
+    #     },
+    #     {
+    #         'entry_window': 30, 
+    #         'exit_window': 15,
+    #         'stop_multiple': 7
+    #     },
+    #     {
+    #         'entry_window': 40, 
+    #         'exit_window': 20,
+    #         'stop_multiple': 4
+    #     },
+    #     {
+    #         'entry_window': 50, 
+    #         'exit_window': 25,
+    #         'stop_multiple': 3
+    #     },
+    #     {
+    #         'entry_window': 60, 
+    #         'exit_window': 30,
+    #         'stop_multiple': 2
+    #     },
+    #     {
+    #         'entry_window': 70, 
+    #         'exit_window': 35,
+    #         'stop_multiple': 2
+    #     },
+    #     {
+    #         'entry_window': 80, 
+    #         'exit_window': 40,
+    #         'stop_multiple': 2
+    #     },
+    # ]
 
     # print(turtle_settings)
     # while 1:
@@ -236,7 +302,7 @@ if __name__ == "__main__":
     print("Multi process backtest started.")
     for setting_dict in turtle_settings:
         # print(setting_dict)
-        pool.apply_async(batch_run, args=(strategy_name, setting_dict, note_str))
+        pool.apply_async(batch_run, args=(strategy_name, setting_dict, note_str, empty_cost))
     pool.close()
     pool.join()
 
