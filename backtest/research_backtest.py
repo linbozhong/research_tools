@@ -21,6 +21,9 @@ from utility import comodity_to_vt_symbol, get_output_path, vt_trade_to_df, trad
 from backtesting import ResearchBacktestingEngine
 from trade_match import calculate_trades_result, generate_trade_df, exhaust_trade_result
 from turtle_b_strategy import TurtleBStrategy
+from turtle_c_strategy import TurtleCStrategy
+from turtle_d_strategy import TurtleDStrategy
+from turtle_e_strategy import TurtleEStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -28,19 +31,30 @@ print(vnpy.__version__)
 future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
 future_hot_start = pd.read_csv('future_hot_start.csv', index_col=0,  header=None, names=['hot_start'])
 
+strategy_class_map = {
+    'turtle': TurtleBStrategy,
+    'turtle_inverse_trade': TurtleCStrategy,
+    'turtle_exit_ma': TurtleDStrategy,
+    'turtle_entry_following_stop': TurtleEStrategy
+}
+
+
 def get_hot_start(commodity: str) -> datetime:
     start = future_hot_start.loc[commodity.upper()]['hot_start']
     start = datetime.strptime(start, '%Y-%m-%d')
     if not pd.isna(start):
         return start
     
-def params_to_str(params: dict) -> str:
+def params_to_str(params: dict, sep: str = '.') -> str:
     if params:
-        return '.'.join([f"{k}_{v}" for k, v in params.items()])
+        for v in params.values():
+            if isinstance(v, float):
+                sep_str = '-'
+        return sep_str.join([f"{k}_{v}" for k, v in params.items()])
     else:
         return 'default'
 
-def str_to_params(params_str: str) -> dict:
+def str_to_params(params_str: str, sep: str = '.') -> dict:
     """
     eg. exit_window_10.stop_multiple_1
     """
@@ -48,7 +62,7 @@ def str_to_params(params_str: str) -> dict:
         return {'params': params_str}
     else:
         d = {}
-        params_list = params_str.split('.')
+        params_list = params_str.split(sep)
         for param in params_list:
             sub_param_list = param.split('_')
             key = '_'.join(sub_param_list[0: -1])
@@ -60,20 +74,27 @@ def run_research_backtest(
     commodity: str,
     start: datetime,
     end: datetime,
-    trade_output: bool = False,
-    curve_output: bool = False,
+    strategy_name: Optional[str] = None,
     strategy_params: Optional[dict] = None,
     custom_note: str = 'default',
-    empty_cost: bool = False
+    empty_cost: bool = False,
+    trade_output: bool = False,
+    curve_output: bool = False,
 ) -> dict:
     """Run single commodity backtest"""
-    params_str = params_to_str(strategy_params)
-    # print('run research backtest', params_str)
+
     interval = '1h'
-    strategy_name = 'turtle'
+
+    if not strategy_name:
+        strategy_name = 'turtle'
+        strategy_class = TurtleBStrategy
+    else:
+        strategy_class = strategy_class_map[strategy_name]
+
     if strategy_params is None:
         strategy_params = {}
-    rate = 0
+    params_str = params_to_str(strategy_params)
+    
 
     vt_symbol = comodity_to_vt_symbol(commodity, 'main')
     size = future_basic_data.loc[commodity]['size']
@@ -84,6 +105,7 @@ def run_research_backtest(
     slippage = pricetick * (1 + com_slip_ratio)
     if empty_cost:
         slippage = 0
+    rate = 0
     
     engine = ResearchBacktestingEngine()
     engine.set_parameters(
@@ -97,7 +119,7 @@ def run_research_backtest(
         pricetick=pricetick,
         capital=capital
     )
-    engine.add_strategy(TurtleBStrategy, strategy_params)
+    engine.add_strategy(strategy_class, strategy_params)
 
     # run backtest
     engine.load_data()
@@ -153,7 +175,7 @@ def run_research_backtest(
         'pos_duration': trade_res['pos_duration']
     }
     
-    print(f"{strategy_name}.{commodity}.{params_str}-回测完成")
+    print(f"{strategy_name}.{commodity}.{params_str}.{custom_note}-回测完成")
     return d
 
 def batch_run(
@@ -176,12 +198,12 @@ def batch_run(
     res_list = []
     columns = []
 
-    # print('batch run', params)
+    print(f'Strategy:{strategy_name} multi backtest started.')
     for commodity in commodities:
         start = get_hot_start(commodity)
         end = datetime(2019, 12, 1)
 
-        res = run_research_backtest(commodity, start, end, strategy_params=params, empty_cost=empty_cost)
+        res = run_research_backtest(commodity, start, end, strategy_name, params, note_str, empty_cost)
         res_list.append(res)
         columns = list(res.keys())
 
@@ -240,62 +262,20 @@ def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     return res_dict
 
 if __name__ == "__main__":
-    strategy_name = 'turtle'
+    strategy_name = 'turtle_entry_following_stop'
     empty_cost = False
-    note_str = 'high_entry_exit'
+    note_str = 'entry_80_following_stop'
 
     turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("entry_window", 60, 80, 10)
-    turtle_gen.add_parameter("exit_window", 5, 40, 5)
-    turtle_gen.add_parameter("stop_multiple", 10)
+    turtle_gen.add_parameter("entry_window", 80)
+    # turtle_gen.add_parameter("exit_window", 30)
+    turtle_gen.add_parameter("sl_multiplier", 3.5, 6, 0.5)
     turtle_settings = turtle_gen.generate_setting()
 
-    # turtle_settings = [
-    #     {
-    #         'entry_window': 10, 
-    #         'exit_window': 5,
-    #         'stop_multiple': 7
-    #     },
-    #     {
-    #         'entry_window': 20, 
-    #         'exit_window': 10,
-    #         'stop_multiple': 7
-    #     },
-    #     {
-    #         'entry_window': 30, 
-    #         'exit_window': 15,
-    #         'stop_multiple': 7
-    #     },
-    #     {
-    #         'entry_window': 40, 
-    #         'exit_window': 20,
-    #         'stop_multiple': 4
-    #     },
-    #     {
-    #         'entry_window': 50, 
-    #         'exit_window': 25,
-    #         'stop_multiple': 3
-    #     },
-    #     {
-    #         'entry_window': 60, 
-    #         'exit_window': 30,
-    #         'stop_multiple': 2
-    #     },
-    #     {
-    #         'entry_window': 70, 
-    #         'exit_window': 35,
-    #         'stop_multiple': 2
-    #     },
-    #     {
-    #         'entry_window': 80, 
-    #         'exit_window': 40,
-    #         'stop_multiple': 2
-    #     },
-    # ]
-
-    # print(turtle_settings)
-    # while 1:
-    #     pass
+    # load custom setting
+    # df = pd.read_csv('custom_turtle_settings.csv')
+    # series = dict(df.iterrows()).values()
+    # turtle_settings = [dict(s) for s in series]
 
     # 多线程回测
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
@@ -310,16 +290,10 @@ if __name__ == "__main__":
     print("All finished.")
 
 
-    # 同步回测
-    # turtle_gen = OptimizationSetting()
-    # turtle_gen.add_parameter("exit_window", 15, 20, 5)
-    # turtle_gen.add_parameter("stop_multiple", 2, 4, 1)
-    # turtle_settings = turtle_gen.generate_setting()
-
-    # strategy_name = 'turtle'
+    # 同步回测，可用于检测bug
     # for setting_dict in turtle_settings:
-    #     batch_run(strategy_name, setting_dict)
-    #     print(f"{params_to_str(setting_dict)} is finished.")
+    #     batch_run(strategy_name, setting_dict, note_str, empty_cost)
+    #     # print(f"{params_to_str(setting_dict)} is finished.")
 
     # print("=" * 60)
     # print("All finished.")
