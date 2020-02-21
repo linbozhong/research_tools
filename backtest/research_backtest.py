@@ -24,6 +24,7 @@ from turtle_b_strategy import TurtleBStrategy
 from turtle_c_strategy import TurtleCStrategy
 from turtle_d_strategy import TurtleDStrategy
 from turtle_e_strategy import TurtleEStrategy
+from boll_channel_strategy import BollChannelStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -35,7 +36,8 @@ strategy_class_map = {
     'turtle': TurtleBStrategy,
     'turtle_inverse_trade': TurtleCStrategy,
     'turtle_exit_ma': TurtleDStrategy,
-    'turtle_entry_following_stop': TurtleEStrategy
+    'turtle_entry_following_stop': TurtleEStrategy,
+    'boll': BollChannelStrategy
 }
 
 
@@ -49,8 +51,8 @@ def params_to_str(params: dict, sep: str = '.') -> str:
     if params:
         for v in params.values():
             if isinstance(v, float):
-                sep_str = '-'
-        return sep_str.join([f"{k}_{v}" for k, v in params.items()])
+                sep = '-'
+        return sep.join([f"{k}_{v}" for k, v in params.items()])
     else:
         return 'default'
 
@@ -213,7 +215,7 @@ def batch_run(
     df.to_csv(get_output_path(file_name, 'multi_backtest', note_str), index=False)
 
 def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
-    test_name = filename.rstrip('.csv')
+    test_name = filename.replace('.csv', '')
     
     folder = 'multi_backtest'
     if note == 'default':
@@ -262,14 +264,19 @@ def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     return res_dict
 
 if __name__ == "__main__":
-    strategy_name = 'turtle_entry_following_stop'
+    strategy_name = 'boll'
     empty_cost = False
-    note_str = 'entry_80_following_stop'
+    note_str = 'boll_window_dev'
 
     turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("entry_window", 80)
+    turtle_gen.add_parameter("boll_window", 10)
+    turtle_gen.add_parameter("boll_dev", 6.5, 8.5, 0.5)
+    turtle_gen.add_parameter("sl_multiplier", 3.5)
+
+    # turtle_gen.add_parameter("entry_window", 10, 50, 10)
     # turtle_gen.add_parameter("exit_window", 30)
-    turtle_gen.add_parameter("sl_multiplier", 3.5, 6, 0.5)
+    # turtle_gen.add_parameter("sl_multiplier", 3.5)
+
     turtle_settings = turtle_gen.generate_setting()
 
     # load custom setting

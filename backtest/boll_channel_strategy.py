@@ -12,14 +12,14 @@ from vnpy.app.cta_strategy import (
 
 class BollChannelStrategy(CtaTemplate):
     """"""
+    # 原始布尔通道
+    author = "boll"
 
-    author = "backtest example"
-
-    boll_window = 18
-    boll_dev = 3.4
+    boll_window = 20
+    boll_dev = 3
     cci_window = 10
     atr_window = 30
-    sl_multiplier = 3
+    sl_multiplier = 3.5
     fixed_size = 1
 
     boll_up = 0
@@ -101,10 +101,15 @@ class BollChannelStrategy(CtaTemplate):
             self.intra_trade_high = bar.high_price
             self.intra_trade_low = bar.low_price
 
-            if self.cci_value > 0:
-                self.buy(self.boll_up, self.fixed_size, True)
-            elif self.cci_value < 0:
-                self.short(self.boll_down, self.fixed_size, True)
+            # 不用过滤器
+            self.buy(self.boll_up, self.fixed_size, True)
+            self.short(self.boll_down, self.fixed_size, True)
+
+            # 添加cci过滤器
+            # if self.cci_value > 0:
+            #     self.buy(self.boll_up, self.fixed_size, True)
+            # elif self.cci_value < 0:
+            #     self.short(self.boll_down, self.fixed_size, True)
 
         elif self.pos > 0:
             self.intra_trade_high = max(self.intra_trade_high, bar.high_price)
