@@ -25,6 +25,7 @@ from turtle_c_strategy import TurtleCStrategy
 from turtle_d_strategy import TurtleDStrategy
 from turtle_e_strategy import TurtleEStrategy
 from boll_channel_strategy import BollChannelStrategy
+from boll_ma_strategy import BollMaStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -37,7 +38,8 @@ strategy_class_map = {
     'turtle_inverse_trade': TurtleCStrategy,
     'turtle_exit_ma': TurtleDStrategy,
     'turtle_entry_following_stop': TurtleEStrategy,
-    'boll': BollChannelStrategy
+    'boll': BollChannelStrategy,
+    'boll_exit_ma': BollMaStrategy
 }
 
 
@@ -264,14 +266,14 @@ def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     return res_dict
 
 if __name__ == "__main__":
-    strategy_name = 'boll'
+    strategy_name = 'boll_exit_ma'
     empty_cost = False
-    note_str = 'boll_window_dev'
+    note_str = 'boll_exit_ma'
 
     turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("boll_window", 10)
-    turtle_gen.add_parameter("boll_dev", 6.5, 8.5, 0.5)
-    turtle_gen.add_parameter("sl_multiplier", 3.5)
+    turtle_gen.add_parameter("boll_window", 80)
+    turtle_gen.add_parameter("boll_dev", 6, 8, 1)
+    # turtle_gen.add_parameter("sl_multiplier", 1, 8, 1)
 
     # turtle_gen.add_parameter("entry_window", 10, 50, 10)
     # turtle_gen.add_parameter("exit_window", 30)
