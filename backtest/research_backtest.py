@@ -10,16 +10,17 @@ import multiprocessing
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from itertools import product
 from multiprocessing import Pool
 
 from vnpy.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSetting
 from vnpy.trader.constant import Offset
 
-from utility import comodity_to_vt_symbol, get_output_path, vt_trade_to_df, trade_zh_to_en, get_output_folder
+from utility import comodity_to_vt_symbol, get_output_path, vt_trade_to_df, trade_zh_to_en, get_output_folder, load_data
 from backtesting import ResearchBacktestingEngine
 from trade_match import calculate_trades_result, generate_trade_df, exhaust_trade_result
+
 from turtle_b_strategy import TurtleBStrategy
 from turtle_c_strategy import TurtleCStrategy
 from turtle_d_strategy import TurtleDStrategy
@@ -48,7 +49,15 @@ def get_hot_start(commodity: str) -> datetime:
     start = datetime.strptime(start, '%Y-%m-%d')
     if not pd.isna(start):
         return start
-    
+
+
+def get_future_trade_date_index(start: datetime, end: datetime) -> np.ndarray:
+    """返回用于对比所有期货品种的标准化时间序列"""
+    df = load_data('AU888.SHFE', '1h', start, end, )
+    df['date'] = df.index.map(lambda dt: dt.date())
+    return df['date'].drop_duplicates().values
+
+
 def params_to_str(params: dict, sep: str = '.') -> str:
     if params:
         for v in params.values():
@@ -57,6 +66,7 @@ def params_to_str(params: dict, sep: str = '.') -> str:
         return sep.join([f"{k}_{v}" for k, v in params.items()])
     else:
         return 'default'
+
 
 def str_to_params(params_str: str, sep: str = '.') -> dict:
     """
@@ -73,6 +83,89 @@ def str_to_params(params_str: str, sep: str = '.') -> dict:
             value = sub_param_list[-1]
             d[key] = float(value)
         return d
+
+
+def run_backtest_for_portfolio(
+    strategy_name: str,
+    setting: dict,
+    commodity: str,
+    interval: str,
+    start: datetime,
+    end: datetime,
+    capital: float,
+    empty_cost: bool = False,
+) -> pd.DataFrame:
+    """"""
+    vt_symbol = comodity_to_vt_symbol(commodity, 'main')
+    size = future_basic_data.loc[commodity]['size']
+    pricetick = future_basic_data.loc[commodity]['pricetick']
+
+    com_slip_ratio = future_basic_data.loc[commodity]['com_slip_ratio']
+    slippage = pricetick * (1 + com_slip_ratio)
+    if empty_cost:
+        slippage = 0
+    rate = 0
+
+    engine = ResearchBacktestingEngine()
+    engine.set_parameters(
+        vt_symbol=vt_symbol,
+        interval=interval,
+        start=start,
+        end=end,
+        rate=rate,
+        slippage=slippage,
+        size=size,
+        pricetick=pricetick,
+        capital=capital    
+    )
+
+    strategy_class = strategy_class_map[strategy_name]
+    engine.add_strategy(strategy_class, setting)
+    engine.load_data()
+    engine.run_backtesting()
+    df = engine.calculate_result()
+    df = df.drop(['close_price', 'pre_close', 'trades', 'start_pos', 'end_pos'], axis=1)
+    print(f'{commodity}-{strategy_name}-backtest finished.')
+    return df
+
+
+def run_portfolio(
+    commodity_list: List[str],
+    strategy_name: str,
+    setting: dict,
+    start: datetime,
+    end: datetime,
+    capital: float,
+    note_str: str = 'default',
+    empty_cost: bool = False
+    ):
+    """"""
+    interval = '1h'
+    normal_date_seq = get_future_trade_date_index(start, end)
+
+    print(f'Strategy:{strategy_name} portfolio backtest started.')
+    first_flag = True
+    df_sum = None
+    for commodity in commodity_list:
+        res = run_backtest_for_portfolio(strategy_name, setting, commodity, interval, start, end, capital, empty_cost)
+        res = res.reindex(normal_date_seq, fill_value=0)
+        # print(res.head(5))
+        res.to_csv(get_output_path(f"{commodity}.csv", 'portfolio', note_str, 'sub_result'))
+        if first_flag:
+            df_sum = res
+            first_flag = False
+        else:
+            df_sum += res
+    # df_sum.dropna(inplace=True)
+
+    params = params_to_str(setting)
+    file_name = f'{strategy_name}@{params}@{note_str}.csv'
+    df_sum.to_csv(get_output_path(file_name, 'portfolio', note_str))
+
+    print(f'Strategy:{strategy_name} portfolio backtest finished.')
+
+    return df_sum
+
 
 def run_research_backtest(
     commodity: str,
