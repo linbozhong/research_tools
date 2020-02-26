@@ -25,6 +25,10 @@ from turtle_b_strategy import TurtleBStrategy
 from turtle_c_strategy import TurtleCStrategy
 from turtle_d_strategy import TurtleDStrategy
 from turtle_e_strategy import TurtleEStrategy
+
+from turtle_rsi_strategy import TurtleRsiFilterStrategy
+from turtle_fluid_strategy import TurtleFluidSizeStrategy
+
 from boll_channel_strategy import BollChannelStrategy
 from boll_ma_strategy import BollMaStrategy
 
@@ -39,6 +43,8 @@ strategy_class_map = {
     'turtle_inverse_trade': TurtleCStrategy,
     'turtle_exit_ma': TurtleDStrategy,
     'turtle_entry_following_stop': TurtleEStrategy,
+    'turtle_rsi_filter': TurtleRsiFilterStrategy,
+    'turtle_fluid_size': TurtleFluidSizeStrategy,
     'boll': BollChannelStrategy,
     'boll_exit_ma': BollMaStrategy
 }
@@ -106,6 +112,8 @@ def run_backtest_for_portfolio(
         slippage = 0
     rate = 0
 
+    setting.update({'symbol_size': size, 'risk_capital': capital})
+
     engine = ResearchBacktestingEngine()
     engine.set_parameters(
         vt_symbol=vt_symbol,
@@ -150,7 +158,7 @@ def run_portfolio(
         res = run_backtest_for_portfolio(strategy_name, setting, commodity, interval, start, end, capital, empty_cost)
         res = res.reindex(normal_date_seq, fill_value=0)
         # print(res.head(5))
-        res.to_csv(get_output_path(f"{commodity}.csv", 'portfolio', note_str, 'sub_result'))
+        res.to_csv(get_output_path(f"{commodity}.csv", 'portfolio', f'{strategy_name}-{note_str}', 'sub_result'))
         if first_flag:
             df_sum = res
             first_flag = False
@@ -160,7 +168,7 @@ def run_portfolio(
 
     params = params_to_str(setting)
     file_name = f'{strategy_name}@{params}@{note_str}.csv'
-    df_sum.to_csv(get_output_path(file_name, 'portfolio', note_str))
+    df_sum.to_csv(get_output_path(file_name, 'portfolio', f'{strategy_name}-{note_str}'))
 
     print(f'Strategy:{strategy_name} portfolio backtest finished.')
 
@@ -191,7 +199,6 @@ def run_research_backtest(
     if strategy_params is None:
         strategy_params = {}
     params_str = params_to_str(strategy_params)
-    
 
     vt_symbol = comodity_to_vt_symbol(commodity, 'main')
     size = future_basic_data.loc[commodity]['size']
@@ -204,6 +211,8 @@ def run_research_backtest(
         slippage = 0
     rate = 0
     
+    strategy_params.update({'symbol_size': size})
+
     engine = ResearchBacktestingEngine()
     engine.set_parameters(
         vt_symbol=vt_symbol,
