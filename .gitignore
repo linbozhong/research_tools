@@ -114,6 +114,4 @@ backtest/.vntrader/vt_setting.json
 backtest/result/
 backtest/test.ipynb
 backtest/turtle_b_strategy.py
-
-# analyze script data
-analyze_script/server_log/
+backtest/server_log/
