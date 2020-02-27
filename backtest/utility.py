@@ -287,15 +287,15 @@ def get_pre_trading_date(dt: datetime, n: int) -> datetime:
     return s[s <= dt].iloc[-n]
 
 
-def get_output_path(filename: str, *folder_args) -> PurePath:
-    folder = Path.cwd().joinpath('result', *folder_args)
+def get_output_path(filename: str, *folder_args, root_default='result') -> PurePath:
+    folder = Path.cwd().joinpath(root_default, *folder_args)
     if not folder.exists():
         folder.mkdir(parents=True)
     return folder.joinpath(folder, filename)
 
 
-def get_output_folder(*args) -> PurePath:
-    folder = Path.cwd().joinpath('result', *args)
+def get_output_folder(*args, root_default='result') -> PurePath:
+    folder = Path.cwd().joinpath(root_default, *args)
     if not folder.exists():
         folder.mkdir(parents=True)
     return folder
