@@ -31,6 +31,8 @@ from turtle_fluid_strategy import TurtleFluidSizeStrategy
 
 from boll_channel_strategy import BollChannelStrategy
 from boll_ma_strategy import BollMaStrategy
+from boll_ma_rsi_strategy import BollMaRsiStrategy
+from boll_ma_fluid_strategy import BollFluidStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -46,7 +48,9 @@ strategy_class_map = {
     'turtle_rsi_filter': TurtleRsiFilterStrategy,
     'turtle_fluid_size': TurtleFluidSizeStrategy,
     'boll': BollChannelStrategy,
-    'boll_exit_ma': BollMaStrategy
+    'boll_exit_ma': BollMaStrategy,
+    'boll_ma_rsi': BollMaRsiStrategy,
+    'boll_fluid': BollFluidStrategy
 }
 
 
@@ -100,6 +104,7 @@ def run_backtest_for_portfolio(
     end: datetime,
     capital: float,
     empty_cost: bool = False,
+    cost_multiple: float = 1.0
 ) -> pd.DataFrame:
     """"""
     vt_symbol = comodity_to_vt_symbol(commodity, 'main')
@@ -107,7 +112,7 @@ def run_backtest_for_portfolio(
     pricetick = future_basic_data.loc[commodity]['pricetick']
 
     com_slip_ratio = future_basic_data.loc[commodity]['com_slip_ratio']
-    slippage = pricetick * (1 + com_slip_ratio)
+    slippage = pricetick * cost_multiple + (pricetick * com_slip_ratio)
     if empty_cost:
         slippage = 0
     rate = 0
@@ -132,6 +137,10 @@ def run_backtest_for_portfolio(
     engine.load_data()
     engine.run_backtesting()
     df = engine.calculate_result()
+
+    if df is None:
+        return
+
     df = df.drop(['close_price', 'pre_close', 'trades', 'start_pos', 'end_pos'], axis=1)
     print(f'{commodity}-{strategy_name}-backtest finished.')
     return df
@@ -145,7 +154,8 @@ def run_portfolio(
     end: datetime,
     capital: float,
     note_str: str = 'default',
-    empty_cost: bool = False
+    empty_cost: bool = False,
+    cost_multiple: float = 1.0, 
     ):
     """"""
     interval = '1h'
@@ -155,9 +165,13 @@ def run_portfolio(
     first_flag = True
     df_sum = None
     for commodity in commodity_list:
-        res = run_backtest_for_portfolio(strategy_name, setting, commodity, interval, start, end, capital, empty_cost)
-        res = res.reindex(normal_date_seq, fill_value=0)
-        # print(res.head(5))
+        res = run_backtest_for_portfolio(strategy_name, setting, commodity, interval, start, end, capital, empty_cost, cost_multiple)
+        if res is not None:
+            res = res.reindex(normal_date_seq, fill_value=0)
+        else:
+            print(f"{commodity}没有回测结果")
+            continue
+
         res.to_csv(get_output_path(f"{commodity}.csv", 'portfolio', f'{strategy_name}-{note_str}', 'sub_result'))
         if first_flag:
             df_sum = res
@@ -183,12 +197,18 @@ def run_research_backtest(
     strategy_params: Optional[dict] = None,
     custom_note: str = 'default',
     empty_cost: bool = False,
+    cost_multiple: float = 1.0, 
     trade_output: bool = False,
     curve_output: bool = False,
+    capital: Optional[float] = None
 ) -> dict:
     """Run single commodity backtest"""
 
     interval = '1h'
+    vt_symbol = comodity_to_vt_symbol(commodity, 'main')
+    size = future_basic_data.loc[commodity]['size']
+    pricetick = future_basic_data.loc[commodity]['pricetick']
+    com_slip_ratio = future_basic_data.loc[commodity]['com_slip_ratio']
 
     if not strategy_name:
         strategy_name = 'turtle'
@@ -198,21 +218,17 @@ def run_research_backtest(
 
     if strategy_params is None:
         strategy_params = {}
+    strategy_params.update({'symbol_size': size})
     params_str = params_to_str(strategy_params)
 
-    vt_symbol = comodity_to_vt_symbol(commodity, 'main')
-    size = future_basic_data.loc[commodity]['size']
-    pricetick = future_basic_data.loc[commodity]['pricetick']
-    capital = future_basic_data.loc[commodity]['backtest_capital'] * 2
-    com_slip_ratio = future_basic_data.loc[commodity]['com_slip_ratio']
+    if not capital:
+        capital = future_basic_data.loc[commodity]['backtest_capital'] * 2
 
-    slippage = pricetick * (1 + com_slip_ratio)
+    slippage = pricetick * cost_multiple + (pricetick * com_slip_ratio)
     if empty_cost:
         slippage = 0
     rate = 0
     
-    strategy_params.update({'symbol_size': size})
-
     engine = ResearchBacktestingEngine()
     engine.set_parameters(
         vt_symbol=vt_symbol,
@@ -291,16 +307,15 @@ def batch_run(
     empty_cost: bool = False
     ):
     """Run all commodities of portfolio"""
-    # commodities = [
-    #     "cu", "al", "zn"
-    # ]
-
     commodities = [
         "cu", "al", "zn", "pb", "ni", "sn", "au", "ag", "rb", "hc", "bu", "ru", "sp",
         "m", "y", "a", "b", "p", "c", "cs", "jd", "l", "v", "pp", "j", "jm", "i",
         "SR", "CF", "ZC", "FG", "TA", "MA", "OI", "RM", "SF", "SM"
     ]
     
+    # for test
+    # commodities = ["cu", "al", "zn"]
+
     res_list = []
     columns = []
 
@@ -368,13 +383,13 @@ def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     return res_dict
 
 if __name__ == "__main__":
-    strategy_name = 'boll_exit_ma'
+    strategy_name = 'boll_ma_rsi'
     empty_cost = False
-    note_str = 'boll_exit_ma'
+    note_str = 'boll_rsi_entry_80'
 
     turtle_gen = OptimizationSetting()
     turtle_gen.add_parameter("boll_window", 80)
-    turtle_gen.add_parameter("boll_dev", 6, 8, 1)
+    turtle_gen.add_parameter("boll_dev", 2, 5, 1)
     # turtle_gen.add_parameter("sl_multiplier", 1, 8, 1)
 
     # turtle_gen.add_parameter("entry_window", 10, 50, 10)
@@ -389,22 +404,22 @@ if __name__ == "__main__":
     # turtle_settings = [dict(s) for s in series]
 
     # 多线程回测
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    print("Multi process backtest started.")
-    for setting_dict in turtle_settings:
-        # print(setting_dict)
-        pool.apply_async(batch_run, args=(strategy_name, setting_dict, note_str, empty_cost))
-    pool.close()
-    pool.join()
-
-    print("=" * 60)
-    print("All finished.")
-
-
-    # 同步回测，可用于检测bug
+    # pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    # print("Multi process backtest started.")
     # for setting_dict in turtle_settings:
-    #     batch_run(strategy_name, setting_dict, note_str, empty_cost)
-    #     # print(f"{params_to_str(setting_dict)} is finished.")
+    #     # print(setting_dict)
+    #     pool.apply_async(batch_run, args=(strategy_name, setting_dict, note_str, empty_cost))
+    # pool.close()
+    # pool.join()
 
     # print("=" * 60)
     # print("All finished.")
+
+
+    # 同步回测，可用于检测bug
+    for setting_dict in turtle_settings:
+        batch_run(strategy_name, setting_dict, note_str, empty_cost)
+        # print(f"{params_to_str(setting_dict)} is finished.")
+
+    print("=" * 60)
+    print("All finished.")

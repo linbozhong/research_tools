@@ -10,10 +10,10 @@ from vnpy.app.cta_strategy import (
 )
 
 
-class BollMaStrategy(CtaTemplate):
+class BollMaRsiStrategy(CtaTemplate):
     """"""
-    # 布尔通道入场-同样窗口数的均线出场
-    author = "boll"
+    # 布尔通道入场-同样窗口数的均线出场-rsi过滤
+    author = "boll_ma_rsi"
 
     boll_window = 20
     boll_dev = 3
@@ -26,6 +26,7 @@ class BollMaStrategy(CtaTemplate):
     boll_down = 0
     cci_value = 0
     atr_value = 0
+    rsi_value = 0
 
     intra_trade_high = 0
     intra_trade_low = 0
@@ -34,14 +35,15 @@ class BollMaStrategy(CtaTemplate):
 
     parameters = ["boll_window", "boll_dev", "cci_window",
                   "atr_window", "sl_multiplier", "fixed_size"]
-    variables = ["boll_up", "boll_down", "cci_value", "atr_value",
+    variables = ["boll_up", "boll_down", "cci_value", "atr_value", "rsi_value",
                  "intra_trade_high", "intra_trade_low", "long_stop", "short_stop"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         """"""
-        super(BollChannelStrategy, self).__init__(
+        super().__init__(
             cta_engine, strategy_name, vt_symbol, setting
         )
+        print(self.author)
 
         # 用于实盘引擎的Xminbar合成，和回测引擎关系不大
         # self.bg = BarGenerator(self.on_bar, 15, self.on_bar)
@@ -94,16 +96,27 @@ class BollMaStrategy(CtaTemplate):
 
         # print(bar.datetime, bar.close_price)
         self.boll_up, self.boll_down = am.boll(self.boll_window, self.boll_dev)
+        self.exit_ma = am.sma(self.boll_window)
+
+        self.rsi_value = self.am.rsi(self.boll_window)
         self.cci_value = am.cci(self.cci_window)
         self.atr_value = am.atr(self.atr_window)
 
         if self.pos == 0:
-            self.intra_trade_high = bar.high_price
-            self.intra_trade_low = bar.low_price
+            # 追踪止损
+            # self.intra_trade_high = bar.high_price
+            # self.intra_trade_low = bar.low_price
 
             # 不用过滤器
-            self.buy(self.boll_up, self.fixed_size, True)
-            self.short(self.boll_down, self.fixed_size, True)
+            # self.buy(self.boll_up, self.fixed_size, True)
+            # self.short(self.boll_down, self.fixed_size, True)
+
+            # 使用rsi过滤
+            if self.rsi_value >= 50:
+                self.buy(self.boll_up, self.fixed_size, True)
+            else:
+                self.short(self.boll_down, self.fixed_size, True)
+
 
             # 添加cci过滤器
             # if self.cci_value > 0:
@@ -112,18 +125,20 @@ class BollMaStrategy(CtaTemplate):
             #     self.short(self.boll_down, self.fixed_size, True)
 
         elif self.pos > 0:
-            self.intra_trade_high = max(self.intra_trade_high, bar.high_price)
-            self.intra_trade_low = bar.low_price
+            # 追踪止损
+            # self.intra_trade_high = max(self.intra_trade_high, bar.high_price)
+            # self.intra_trade_low = bar.low_price
+            # self.long_stop = self.intra_trade_high - self.atr_value * self.sl_multiplier
 
-            self.long_stop = self.intra_trade_high - self.atr_value * self.sl_multiplier
-            self.sell(self.long_stop, abs(self.pos), True)
+            self.sell(self.exit_ma, abs(self.pos), True)
 
         elif self.pos < 0:
-            self.intra_trade_high = bar.high_price
-            self.intra_trade_low = min(self.intra_trade_low, bar.low_price)
+            # 追踪止损
+            # self.intra_trade_high = bar.high_price
+            # self.intra_trade_low = min(self.intra_trade_low, bar.low_price)
+            # self.short_stop = self.intra_trade_low + self.atr_value * self.sl_multiplier
 
-            self.short_stop = self.intra_trade_low + self.atr_value * self.sl_multiplier
-            self.cover(self.short_stop, abs(self.pos), True)
+            self.cover(self.exit_ma, abs(self.pos), True)
 
         self.put_event()
 

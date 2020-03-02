@@ -10,10 +10,10 @@ from vnpy.app.cta_strategy import (
 )
 
 
-class BollMaStrategy(CtaTemplate):
+class BollFluidStrategy(CtaTemplate):
     """"""
-    # 布尔通道入场-同样窗口数的均线出场
-    author = "boll_exit_ma"
+    # 布尔通道入场-同样窗口数的均线出场-rsi过滤-按atr计算手数
+    author = "boll-fluid-size"
 
     boll_window = 20
     boll_dev = 3
@@ -26,15 +26,21 @@ class BollMaStrategy(CtaTemplate):
     boll_down = 0
     cci_value = 0
     atr_value = 0
+    rsi_value = 0
 
     intra_trade_high = 0
     intra_trade_low = 0
     long_stop = 0
     short_stop = 0
 
-    parameters = ["boll_window", "boll_dev", "cci_window",
+    fluid_size = 1
+    symbol_size = 1
+    risk_percent = 0.002
+    risk_capital = 1000000
+
+    parameters = ["boll_window", "boll_dev", "cci_window", "symbol_size", "risk_percent", "risk_capital"
                   "atr_window", "sl_multiplier", "fixed_size"]
-    variables = ["boll_up", "boll_down", "cci_value", "atr_value",
+    variables = ["boll_up", "boll_down", "cci_value", "atr_value", "rsi_value", "fluid_size"
                  "intra_trade_high", "intra_trade_low", "long_stop", "short_stop"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -43,6 +49,7 @@ class BollMaStrategy(CtaTemplate):
             cta_engine, strategy_name, vt_symbol, setting
         )
         print(self.author)
+        print(self.symbol_size, self.risk_capital, self.risk_percent)
 
         # 用于实盘引擎的Xminbar合成，和回测引擎关系不大
         # self.bg = BarGenerator(self.on_bar, 15, self.on_bar)
@@ -97,17 +104,28 @@ class BollMaStrategy(CtaTemplate):
         self.boll_up, self.boll_down = am.boll(self.boll_window, self.boll_dev)
         self.exit_ma = am.sma(self.boll_window)
 
+        self.rsi_value = self.am.rsi(self.boll_window)
         self.cci_value = am.cci(self.cci_window)
         self.atr_value = am.atr(self.atr_window)
 
         if self.pos == 0:
+            risk_amount = self.risk_capital * self.risk_percent
+            atr_amount = self.atr_value * self.symbol_size
+            self.fluid_size = round(risk_amount / atr_amount) * self.fixed_size
+
             # 追踪止损
             # self.intra_trade_high = bar.high_price
             # self.intra_trade_low = bar.low_price
 
             # 不用过滤器
-            self.buy(self.boll_up, self.fixed_size, True)
-            self.short(self.boll_down, self.fixed_size, True)
+            # self.buy(self.boll_up, self.fixed_size, True)
+            # self.short(self.boll_down, self.fixed_size, True)
+
+            # 使用rsi过滤+标准化手数
+            if self.fluid_size and self.rsi_value >= 50:
+                self.buy(self.boll_up, self.fluid_size, True)
+            elif self.fluid_size and self.rsi_value < 50:
+                self.short(self.boll_down, self.fluid_size, True)
 
             # 添加cci过滤器
             # if self.cci_value > 0:
