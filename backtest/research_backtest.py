@@ -104,7 +104,8 @@ def run_backtest_for_portfolio(
     end: datetime,
     capital: float,
     empty_cost: bool = False,
-    cost_multiple: float = 1.0
+    cost_multiple: float = 1.0,
+    hot_start: bool = True
 ) -> pd.DataFrame:
     """"""
     vt_symbol = comodity_to_vt_symbol(commodity, 'main')
@@ -116,6 +117,10 @@ def run_backtest_for_portfolio(
     if empty_cost:
         slippage = 0
     rate = 0
+
+    if hot_start:
+        hot_start = get_hot_start(commodity)
+        start = hot_start if hot_start >= start else start
 
     setting.update({'symbol_size': size, 'risk_capital': capital})
 
@@ -155,10 +160,10 @@ def run_portfolio(
     capital: float,
     note_str: str = 'default',
     empty_cost: bool = False,
-    cost_multiple: float = 1.0, 
+    cost_multiple: float = 1.0,
+    interval: str = '1h'
     ):
     """"""
-    interval = '1h'
     normal_date_seq = get_future_trade_date_index(start, end)
 
     print(f'Strategy:{strategy_name} portfolio backtest started.')
@@ -200,11 +205,11 @@ def run_research_backtest(
     cost_multiple: float = 1.0, 
     trade_output: bool = False,
     curve_output: bool = False,
-    capital: Optional[float] = None
+    capital: Optional[float] = None, 
+    interval: str = '1h'
 ) -> dict:
     """Run single commodity backtest"""
-
-    interval = '1h'
+    # interval = '1h'
     vt_symbol = comodity_to_vt_symbol(commodity, 'main')
     size = future_basic_data.loc[commodity]['size']
     pricetick = future_basic_data.loc[commodity]['pricetick']
