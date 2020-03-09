@@ -21,18 +21,21 @@ from utility import comodity_to_vt_symbol, get_output_path, vt_trade_to_df, trad
 from backtesting import ResearchBacktestingEngine
 from trade_match import calculate_trades_result, generate_trade_df, exhaust_trade_result
 
-from turtle_b_strategy import TurtleBStrategy
-from turtle_c_strategy import TurtleCStrategy
-from turtle_d_strategy import TurtleDStrategy
-from turtle_e_strategy import TurtleEStrategy
+from strategy.turtle_b_strategy import TurtleBStrategy
+from strategy.turtle_c_strategy import TurtleCStrategy
+from strategy.turtle_d_strategy import TurtleDStrategy
+from strategy.turtle_e_strategy import TurtleEStrategy
 
-from turtle_rsi_strategy import TurtleRsiFilterStrategy
-from turtle_fluid_strategy import TurtleFluidSizeStrategy
+from strategy.turtle_rsi_strategy import TurtleRsiFilterStrategy
+from strategy.turtle_fluid_strategy import TurtleFluidSizeStrategy
 
-from boll_channel_strategy import BollChannelStrategy
-from boll_ma_strategy import BollMaStrategy
-from boll_ma_rsi_strategy import BollMaRsiStrategy
-from boll_ma_fluid_strategy import BollFluidStrategy
+from strategy.boll_channel_strategy import BollChannelStrategy
+from strategy.boll_ma_strategy import BollMaStrategy
+from strategy.boll_ma_rsi_strategy import BollMaRsiStrategy
+from strategy.boll_ma_fluid_strategy import BollFluidStrategy
+
+from strategy.double_ma_strategy import DoubleMaStrategy
+from strategy.double_ma_rsi_strategy import DoubleMaRsiStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -50,7 +53,9 @@ strategy_class_map = {
     'boll': BollChannelStrategy,
     'boll_exit_ma': BollMaStrategy,
     'boll_ma_rsi': BollMaRsiStrategy,
-    'boll_fluid': BollFluidStrategy
+    'boll_fluid': BollFluidStrategy,
+    'double_ma': DoubleMaStrategy,
+    'double_ma_rsi': DoubleMaRsiStrategy
 }
 
 
@@ -206,7 +211,8 @@ def run_research_backtest(
     trade_output: bool = False,
     curve_output: bool = False,
     capital: Optional[float] = None, 
-    interval: str = '1h'
+    interval: str = '1h',
+    keep_last_open = False
 ) -> dict:
     """Run single commodity backtest"""
     # interval = '1h'
@@ -253,9 +259,11 @@ def run_research_backtest(
     engine.run_backtesting()
 
     trades = engine.get_all_trades()
-    last_trade = trades[-1]
-    if last_trade.offset == Offset.OPEN:
-        engine.trades.pop(last_trade.vt_tradeid)
+
+    if not keep_last_open:
+        last_trade = trades[-1]
+        if last_trade.offset == Offset.OPEN:
+            engine.trades.pop(last_trade.vt_tradeid)
 
     if trade_output:
         fn = f'{strategy_name}.{commodity}.{params_str}.{custom_note}.trades.csv'
@@ -268,7 +276,7 @@ def run_research_backtest(
     
     if curve_output:
         img_name = f'{strategy_name}.{commodity}.{params_str}.{custom_note}.pnl-curve.jpg'
-        fig = plt.figure(figsize=(16, 10))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(1, 1, 1)
         ax.set_title(f'{commodity}-{params_str}-{custom_note} Balance Curve')
         engine.daily_df['balance'].plot(legend=True, ax=ax)

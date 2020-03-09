@@ -12,7 +12,7 @@ from vnpy.trader.constant import Interval
 
 
 class DoubleMaStrategy(CtaTemplate):
-    author = "SegmentationTest"
+    author = "double_ma_original"
 
     fast_window = 20
     slow_window = 40
@@ -28,12 +28,16 @@ class DoubleMaStrategy(CtaTemplate):
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         """"""
-        super(DoubleMaStrategy, self).__init__(
+        super().__init__(
             cta_engine, strategy_name, vt_symbol, setting
         )
 
         self.bg = BarGenerator(self.on_bar)
-        self.am = ArrayManager()
+        self.am = ArrayManager(size=60)
+
+        self.local_stop = False
+        self.limit_up = 1.04
+        self.limit_down = 0.96
 
     def on_init(self):
         """
@@ -42,7 +46,8 @@ class DoubleMaStrategy(CtaTemplate):
         self.write_log("策略初始化")
 
         # switch from load minute bar to hour bar
-        self.load_bar(30, Interval.HOUR)
+        # 回撤引擎，load_bar只有days(回溯交易日)和callback有作用，其他传入参数都没有作用。
+        self.load_bar(30)
 
     def on_start(self):
         """
@@ -70,7 +75,7 @@ class DoubleMaStrategy(CtaTemplate):
         """
         Callback of new bar data update.
         """
-
+        self.cancel_all()
 
         am = self.am
         am.update_bar(bar)
@@ -90,17 +95,34 @@ class DoubleMaStrategy(CtaTemplate):
 
         if cross_over:
             if self.pos == 0:
-                self.buy(bar.close_price, 1)
+                # self.buy(bar.close_price, 1)
+
+                self.buy(bar.close_price * self.limit_up, 1, self.local_stop)
+                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross open long")
             elif self.pos < 0:
-                self.cover(bar.close_price, 1)
-                self.buy(bar.close_price, 1)
+                # self.cover(bar.close_price, 1)
+                # self.buy(bar.close_price, 1)
+
+                self.cover(bar.close_price * self.limit_up, abs(self.pos), self.local_stop)
+                self.buy(bar.close_price * self.limit_up, 1, self.local_stop)
+                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross close short and open long")
 
         elif cross_below:
             if self.pos == 0:
-                self.short(bar.close_price, 1)
+                # self.short(bar.close_price, 1)
+
+                self.short(bar.close_price * self.limit_down, 1, self.local_stop)
+                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross open short")
             elif self.pos > 0:
-                self.sell(bar.close_price, 1)
-                self.short(bar.close_price, 1)
+                # self.sell(bar.close_price, 1)
+                # self.short(bar.close_price, 1)
+
+                self.sell(bar.close_price * self.limit_down, abs(self.pos), self.local_stop)
+                self.short(bar.close_price * self.limit_down, 1, self.local_stop)
+                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross close long and open short")
+
+        print('==' * 50)
+        print('datetime:', bar.datetime, 'pos:', self.pos)
 
         self.put_event()
 
@@ -108,12 +130,14 @@ class DoubleMaStrategy(CtaTemplate):
         """
         Callback of new order data update.
         """
+        print("order", order.datetime, order.direction, order.offset, order.price, order.volume)
         pass
 
     def on_trade(self, trade: TradeData):
         """
         Callback of new trade data update.
         """
+        print("Trade:", trade.datetime, trade.direction, trade.offset, trade.price, trade.volume)
         self.put_event()
 
     def on_stop_order(self, stop_order: StopOrder):

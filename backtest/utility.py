@@ -10,8 +10,8 @@ from vnpy.trader.constant import Interval, Offset
 from vnpy.trader.database import database_manager
 from vnpy.trader.utility import extract_vt_symbol
 
-from boll_channel_strategy import BollChannelStrategy
-from turtle_signal_strategy import TurtleSignalStrategy
+from strategy.boll_channel_strategy import BollChannelStrategy
+from strategy.turtle_signal_strategy import TurtleSignalStrategy
 from backtesting import SegBacktestingEngine
 
 DAY_START = dt_time(8)
