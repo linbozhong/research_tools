@@ -1,2 +1,2 @@
-python research_backtest.py
+python run_backtest.py
 pause

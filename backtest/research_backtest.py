@@ -36,6 +36,7 @@ from strategy.boll_ma_fluid_strategy import BollFluidStrategy
 
 from strategy.double_ma_strategy import DoubleMaStrategy
 from strategy.double_ma_rsi_strategy import DoubleMaRsiStrategy
+from strategy.double_ma_std_strategy import DoubleMaStdStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -55,7 +56,8 @@ strategy_class_map = {
     'boll_ma_rsi': BollMaRsiStrategy,
     'boll_fluid': BollFluidStrategy,
     'double_ma': DoubleMaStrategy,
-    'double_ma_rsi': DoubleMaRsiStrategy
+    'double_ma_rsi': DoubleMaRsiStrategy,
+    'double_ma_std': DoubleMaStdStrategy
 }
 
 
@@ -67,7 +69,10 @@ def get_hot_start(commodity: str) -> datetime:
 
 
 def get_future_trade_date_index(start: datetime, end: datetime) -> np.ndarray:
-    """返回用于对比所有期货品种的标准化时间序列"""
+    """
+    返回用于对比所有期货品种的标准化时间序列
+    各品种夜盘时间不固定（有的无夜盘），在计算每日盈亏的时候就会出现时间线不齐的情况，此处以au为标准。
+    """
     df = load_data('AU888.SHFE', '1h', start, end, )
     df['date'] = df.index.map(lambda dt: dt.date())
     return df['date'].drop_duplicates().values
@@ -259,6 +264,10 @@ def run_research_backtest(
     engine.run_backtesting()
 
     trades = engine.get_all_trades()
+    if not trades:
+        print(f"{strategy_name}.{commodity}.{params_str}.{custom_note}-无任何成交")
+        return
+        
 
     if not keep_last_open:
         last_trade = trades[-1]
@@ -313,38 +322,40 @@ def run_research_backtest(
     print(f"{strategy_name}.{commodity}.{params_str}.{custom_note}-回测完成")
     return d
 
+
 def batch_run(
+    commodity_list: list,
     strategy_name: str,
     params: dict,
     note_str: str = 'default',
-    empty_cost: bool = False
+    empty_cost: bool = False,
+    cost_multiple: float = 2.0,
+    interval = 'd',
+    keep_last_open = True
     ):
     """Run all commodities of portfolio"""
-    commodities = [
-        "cu", "al", "zn", "pb", "ni", "sn", "au", "ag", "rb", "hc", "bu", "ru", "sp",
-        "m", "y", "a", "b", "p", "c", "cs", "jd", "l", "v", "pp", "j", "jm", "i",
-        "SR", "CF", "ZC", "FG", "TA", "MA", "OI", "RM", "SF", "SM"
-    ]
-    
-    # for test
-    # commodities = ["cu", "al", "zn"]
-
     res_list = []
     columns = []
 
     print(f'Strategy:{strategy_name} multi backtest started.')
-    for commodity in commodities:
+    for commodity in commodity_list:
         start = get_hot_start(commodity)
         end = datetime(2019, 12, 1)
 
-        res = run_research_backtest(commodity, start, end, strategy_name, params, note_str, empty_cost)
-        res_list.append(res)
-        columns = list(res.keys())
+        res = run_research_backtest(
+            commodity, start, end, strategy_name, params, note_str, empty_cost,
+            cost_multiple=cost_multiple,
+            interval=interval,
+            keep_last_open=keep_last_open)
+        if res:
+            res_list.append(res)
+            columns = list(res.keys())
 
     params = params_to_str(params)
     file_name = f'{strategy_name}@{params}@{note_str}.csv'
     df = pd.DataFrame(res_list, columns=columns)
     df.to_csv(get_output_path(file_name, 'multi_backtest', note_str), index=False)
+
 
 def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     test_name = filename.replace('.csv', '')
@@ -394,45 +405,3 @@ def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     res_dict['pos_duration'] = df['pos_duration'].mean()
     
     return res_dict
-
-if __name__ == "__main__":
-    strategy_name = 'boll_ma_rsi'
-    empty_cost = False
-    note_str = 'boll_rsi_entry_80'
-
-    turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("boll_window", 80)
-    turtle_gen.add_parameter("boll_dev", 2, 5, 1)
-    # turtle_gen.add_parameter("sl_multiplier", 1, 8, 1)
-
-    # turtle_gen.add_parameter("entry_window", 10, 50, 10)
-    # turtle_gen.add_parameter("exit_window", 30)
-    # turtle_gen.add_parameter("sl_multiplier", 3.5)
-
-    turtle_settings = turtle_gen.generate_setting()
-
-    # load custom setting
-    # df = pd.read_csv('custom_turtle_settings.csv')
-    # series = dict(df.iterrows()).values()
-    # turtle_settings = [dict(s) for s in series]
-
-    # 多线程回测
-    # pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    # print("Multi process backtest started.")
-    # for setting_dict in turtle_settings:
-    #     # print(setting_dict)
-    #     pool.apply_async(batch_run, args=(strategy_name, setting_dict, note_str, empty_cost))
-    # pool.close()
-    # pool.join()
-
-    # print("=" * 60)
-    # print("All finished.")
-
-
-    # 同步回测，可用于检测bug
-    for setting_dict in turtle_settings:
-        batch_run(strategy_name, setting_dict, note_str, empty_cost)
-        # print(f"{params_to_str(setting_dict)} is finished.")
-
-    print("=" * 60)
-    print("All finished.")

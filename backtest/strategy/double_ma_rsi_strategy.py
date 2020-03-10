@@ -99,28 +99,28 @@ class DoubleMaRsiStrategy(CtaTemplate):
         if cross_over:
             if self.pos == 0:
                 self.buy(bar.close_price * self.limit_up, 1, self.local_stop)
-                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross open")
+                # print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross open")
             elif self.pos < 0:
                 self.cover(bar.close_price * self.limit_up, abs(self.pos), self.local_stop)
-                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross close short")
+                # print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross close short")
                 if rsi > 50:
-                    print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross open long after close")
+                    # print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "gloden-cross open long after close")
                     self.buy(bar.close_price * self.limit_up, 1, self.local_stop)
 
         elif cross_below:
             if self.pos == 0:
                 self.short(bar.close_price * self.limit_down, 1, self.local_stop)
-                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross open")
+                # print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross open")
             elif self.pos > 0:
                 self.sell(bar.close_price * self.limit_down, abs(self.pos), self.local_stop)
-                print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross close long")
+                # print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross close long")
                 if rsi < 50:
                     self.short(bar.close_price * self.limit_down, 1, self.local_stop)
-                    print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross open short after close")
+                    # print("Signal:", bar.datetime, "pos:", self.pos, "price:", bar.close_price, "dead-cross open short after close")
 
         
-        print('==' * 50)
-        print('datetime:', bar.datetime, 'pos:', self.pos)
+        # print('==' * 50)
+        # print('datetime:', bar.datetime, 'pos:', self.pos)
 
         self.put_event()
 
@@ -128,14 +128,14 @@ class DoubleMaRsiStrategy(CtaTemplate):
         """
         Callback of new order data update.
         """
-        print("order", order.datetime, order.direction, order.offset, order.price, order.volume)
+        # print("order", order.datetime, order.direction, order.offset, order.price, order.volume)
         pass
 
     def on_trade(self, trade: TradeData):
         """
         Callback of new trade data update.
         """
-        print("Trade:", trade.datetime, trade.direction, trade.offset, trade.price, trade.volume)
+        # print("Trade:", trade.datetime, trade.direction, trade.offset, trade.price, trade.volume)
         self.put_event()
 
     def on_stop_order(self, stop_order: StopOrder):
