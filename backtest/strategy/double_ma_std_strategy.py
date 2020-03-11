@@ -13,6 +13,7 @@ from vnpy.trader.constant import Interval
 
 class DoubleMaStdStrategy(CtaTemplate):
     author = "double_ma_std"
+    is_say_log = True
 
     fast_window = 20
     slow_window = 40
@@ -24,7 +25,7 @@ class DoubleMaStdStrategy(CtaTemplate):
     slow_ma0 = 0.0
     slow_ma1 = 0.0
 
-    parameters = ["fast_window", "slow_window"]
+    parameters = ["fast_window", "slow_window", "std_dev"]
     variables = ["fast_ma0", "fast_ma1", "slow_ma0", "slow_ma1"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -102,11 +103,11 @@ class DoubleMaStdStrategy(CtaTemplate):
         # 监测状态是持续性的，在状态未撤销之前且没有成交（没有仓位），每根bar都会发本地单
         if self.watch_long and self.pos == 0:
             self.buy(self.boll_up, 1, True)
-            print("WatchLong:", bar.datetime, "boll_up:", self.boll_up)
+            self.say_log("WatchLong:", bar.datetime, "boll_up:", self.boll_up)
 
         if self.watch_short and self.pos == 0:
             self.short(self.boll_down, 1, True)
-            print("watchShort:", bar.datetime, "boll_down:", self.boll_down)
+            self.say_log("watchShort:", bar.datetime, "boll_down:", self.boll_down)
 
         # 交叉信号是一次性的，只在触发的bar运行，没成交的单在下一根bar计算之前会被撤销
         if cross_over:
@@ -122,7 +123,7 @@ class DoubleMaStdStrategy(CtaTemplate):
                 self.buy(self.boll_up, 1, True)
                 self.watch_long = True
 
-                print("Signal:", bar.datetime, "pos:", self.pos, "boll_up:", self.boll_up,
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_up:", self.boll_up,
                       "price:", bar.close_price, "gloden-cross open")
 
             elif self.pos < 0:
@@ -134,7 +135,7 @@ class DoubleMaStdStrategy(CtaTemplate):
                 self.buy(self.boll_up, 1, True)
                 self.watch_long = True
 
-                print("Signal:", bar.datetime, "pos:", self.pos, "boll_up:", self.boll_up,
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_up:", self.boll_up,
                       "price:", bar.close_price, "gloden-cross close and open")
 
         elif cross_below:
@@ -147,7 +148,7 @@ class DoubleMaStdStrategy(CtaTemplate):
                 self.short(self.boll_down, 1, True)
                 self.watch_short = True
 
-                print("Signal:", bar.datetime, "pos:", self.pos, "boll_down:", self.boll_down,
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_down:", self.boll_down,
                       "close:", bar.close_price, "dead-cross open")
             elif self.pos > 0:
                 self.boll_up, self.boll_down = am.boll(self.slow_window, self.std_dev)
@@ -156,11 +157,11 @@ class DoubleMaStdStrategy(CtaTemplate):
                 self.short(self.boll_down, 1, True)
                 self.watch_short = True
 
-                print("Signal:", bar.datetime, "pos:", self.pos, "boll_down:", self.boll_down,
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_down:", self.boll_down,
                       "close:", bar.close_price, "dead-cross close and open")
         
-        print('==' * 50)
-        print('datetime:', bar.datetime, 'pos:', self.pos, 'watch-long:',
+        self.say_log('==' * 50)
+        self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'watch-long:',
               self.watch_long, 'watch_short:', self.watch_short)
 
         self.put_event()
@@ -169,20 +170,22 @@ class DoubleMaStdStrategy(CtaTemplate):
         """
         Callback of new order data update.
         """
-        print("order", order.datetime, order.direction, order.offset, order.price, order.volume)
-        pass
+        self.say_log("order", order.datetime, order.direction, order.offset, order.price, order.volume)
 
     def on_trade(self, trade: TradeData):
         """
         Callback of new trade data update.
         """
-        print("Trade:", trade.datetime, trade.direction, trade.offset, trade.price, trade.volume)
+        self.say_log("Trade:", trade.datetime, trade.direction, trade.offset, trade.price, trade.volume)
         self.put_event()
 
     def on_stop_order(self, stop_order: StopOrder):
         """
         Callback of stop order update.
         """
-        print("stop-order", stop_order.direction,
+        self.say_log("stop-order", stop_order.direction,
               stop_order.offset, stop_order.price, stop_order.volume)
-        pass
+
+    def say_log(self, *args):
+        if self.is_say_log:
+            print(*args)
