@@ -37,6 +37,7 @@ from strategy.boll_ma_fluid_strategy import BollFluidStrategy
 from strategy.double_ma_strategy import DoubleMaStrategy
 from strategy.double_ma_rsi_strategy import DoubleMaRsiStrategy
 from strategy.double_ma_std_strategy import DoubleMaStdStrategy
+from strategy.double_ma_atr_strategy import DoubleMaAtrStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -57,7 +58,8 @@ strategy_class_map = {
     'boll_fluid': BollFluidStrategy,
     'double_ma': DoubleMaStrategy,
     'double_ma_rsi': DoubleMaRsiStrategy,
-    'double_ma_std': DoubleMaStdStrategy
+    'double_ma_std': DoubleMaStdStrategy,
+    'double_ma_atr': DoubleMaAtrStrategy
 }
 
 
@@ -292,8 +294,14 @@ def run_research_backtest(
         fig.savefig(get_output_path(img_name, 'pnl_curves'))
 
     trades = engine.trades
-    trade_res = exhaust_trade_result(trades, size, rate, slippage, capital, show_long_short_condition=False)
-
+    try:
+        trade_res = exhaust_trade_result(trades, size, rate, slippage, capital, show_long_short_condition=False)
+    except:
+        trade_df = vt_trade_to_df(engine.get_all_trades())
+        print(f"{strategy_name}.{commodity}.{params_str}.{custom_note}-回测异常")
+        print(trade_df)
+        return
+        
     d = {
         'commodity': commodity,
         'start_date': day_res['start_date'],
@@ -340,7 +348,7 @@ def batch_run(
     print(f'Strategy:{strategy_name} multi backtest started.')
     for commodity in commodity_list:
         start = get_hot_start(commodity)
-        end = datetime(2019, 12, 1)
+        end = datetime.now()
 
         res = run_research_backtest(
             commodity, start, end, strategy_name, params, note_str, empty_cost,

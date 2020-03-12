@@ -4,13 +4,14 @@ from vnpy.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSet
 from research_backtest import batch_run
 
 
+
 if __name__ == "__main__":
-    strategy_name = 'double_ma_std'
+    strategy_name = 'double_ma_atr'
     empty_cost = False
     cost_multiple = 2.0
     interval = 'd'
     keep_last_open = True
-    note_str = 'double_ma_std_daily'
+    note_str = 'double_ma_atr_daily'
 
     commodity_list = [
         "cu", "al", "zn", "pb", "ni", "sn", "au", "ag", "rb", "hc", "bu", "ru", "sp",
@@ -19,12 +20,13 @@ if __name__ == "__main__":
     ]
     
     # for test
-    # commodity_list = ["cu", "al", "zn"]
+    commodity_list = ["cu", "al", "zn"]
+    commodity_list = ["sp"]
 
     turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("fast_window", 5, 30, 5)
-    turtle_gen.add_parameter("slow_window", 60)
-    turtle_gen.add_parameter("std_dev", 2, 4, 1)
+    turtle_gen.add_parameter("fast_window", 5)
+    turtle_gen.add_parameter("slow_window", 40)
+    turtle_gen.add_parameter("atr_multi", 0.5, 2.0, 0.5)
 
     # turtle_gen.add_parameter("entry_window", 5, 10, 5)
     # turtle_gen.add_parameter("exit_window", 20)
@@ -37,24 +39,24 @@ if __name__ == "__main__":
     # series = dict(df.iterrows()).values()
     # turtle_settings = [dict(s) for s in series]
 
-    # 多线程回测
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    print("Multi process backtest started.")
-    for setting_dict in turtle_settings:
-        # print(setting_dict)
-        pool.apply_async(batch_run, args=(commodity_list, strategy_name, setting_dict, note_str, empty_cost))
-    pool.close()
-    pool.join()
-
-    print("=" * 60)
-    print("All finished.")
-
-
-    # 同步回测，可用于检测bug
+    # # 多线程回测
+    # pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    # print("Multi process backtest started.")
     # for setting_dict in turtle_settings:
-    #     batch_run(commodity_list, strategy_name, setting_dict,
-    #               note_str, empty_cost, cost_multiple, interval, keep_last_open)
-    #     # print(f"{params_to_str(setting_dict)} is finished.")
+    #     # print(setting_dict)
+    #     pool.apply_async(batch_run, args=(commodity_list, strategy_name, setting_dict, note_str, empty_cost))
+    # pool.close()
+    # pool.join()
 
     # print("=" * 60)
     # print("All finished.")
+
+
+    # 同步回测，可用于检测bug
+    for setting_dict in turtle_settings:
+        batch_run(commodity_list, strategy_name, setting_dict,
+                  note_str, empty_cost, cost_multiple, interval, keep_last_open)
+        # print(f"{params_to_str(setting_dict)} is finished.")
+
+    print("=" * 60)
+    print("All finished.")
