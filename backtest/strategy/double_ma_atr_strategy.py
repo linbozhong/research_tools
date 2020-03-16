@@ -17,7 +17,7 @@ class DoubleMaAtrStrategy(CtaTemplate):
 
     fast_window = 20
     slow_window = 40
-    atr_multi = 1.0
+    atr_multi = 0.5
 
     fast_ma0 = 0.0
     fast_ma1 = 0.0
@@ -122,10 +122,12 @@ class DoubleMaAtrStrategy(CtaTemplate):
             if self.pos == 0:
                 # 立即发本地单，等待下一根撮合，同时开始监测做多
                 self.buy(self.boll_up, 1, True)
-                self.watch_long = True
+
+                if self.trading:
+                    self.watch_long = True
 
                 self.say_log("Signal:", bar.datetime, "pos:", self.pos, "close_up:", self.boll_up,
-                      "close:", bar.close_price, "gloden-cross open")
+                      "close:", bar.close_price, "gloden-cross open", "trading:", self.trading)
 
             elif self.pos < 0:
                 # 有空头，碰到金叉后，先超价立即平仓
@@ -146,10 +148,12 @@ class DoubleMaAtrStrategy(CtaTemplate):
 
             if self.pos == 0:
                 self.short(self.boll_down, 1, True)
-                self.watch_short = True
+
+                if self.trading:
+                    self.watch_short = True
 
                 self.say_log("Signal:", bar.datetime, "pos:", self.pos, "close_down:", self.boll_down,
-                      "close:", bar.close_price, "dead-cross open")
+                      "close:", bar.close_price, "dead-cross open", "trading:", self.trading)
             elif self.pos > 0:
                 self.sell(bar.close_price * self.limit_down, abs(self.pos), False)
                 self.short(self.boll_down, 1, True)
@@ -158,9 +162,9 @@ class DoubleMaAtrStrategy(CtaTemplate):
                 self.say_log("Signal:", bar.datetime, "pos:", self.pos, "close_down:", self.boll_down,
                       "close:", bar.close_price, "dead-cross close and open")
         
-        self.say_log('==' * 50)
         self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'watch-long:',
               self.watch_long, 'watch_short:', self.watch_short)
+        self.say_log('==' * 50)
 
         self.put_event()
 

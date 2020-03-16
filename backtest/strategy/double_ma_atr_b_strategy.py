@@ -11,13 +11,13 @@ from vnpy.app.cta_strategy import (
 from vnpy.trader.constant import Interval
 
 
-class DoubleMaStdStrategy(CtaTemplate):
-    author = "double_ma_std"
+class DoubleMaAtrBStrategy(CtaTemplate):
+    author = "double_ma_atr_plus_ma"
     is_say_log = False
 
     fast_window = 20
     slow_window = 40
-    std_dev = 2.0
+    atr_multi = 2.0
 
     fast_ma0 = 0.0
     fast_ma1 = 0.0
@@ -25,7 +25,7 @@ class DoubleMaStdStrategy(CtaTemplate):
     slow_ma0 = 0.0
     slow_ma1 = 0.0
 
-    parameters = ["fast_window", "slow_window", "std_dev"]
+    parameters = ["fast_window", "slow_window", "atr_multi"]
     variables = ["fast_ma0", "fast_ma1", "slow_ma0", "slow_ma1"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -115,53 +115,53 @@ class DoubleMaStdStrategy(CtaTemplate):
             self.cancel_all()
             self.watch_short = False
 
-            if self.pos == 0:
-                # 通道只在触发信号的时候计算，后续不再改变。
-                self.boll_up, self.boll_down = am.boll(self.slow_window, self.std_dev)
+            # 通道只在触发信号的时候计算，后续不再改变。
+            base_ma = am.sma(self.fast_window)
+            atr_value = am.atr(self.slow_window) * self.atr_multi
+            self.boll_up = base_ma + atr_value
 
+            if self.pos == 0:
                 # 立即发本地单，等待下一根撮合，同时开始监测做多
                 self.buy(self.boll_up, 1, True)
 
-                # 只在触发交易的时候才启动做单监测，否则监测启动但是下不了单，会造成回测的成交价位不准确
                 if self.trading:
                     self.watch_long = True
 
-                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_up:", self.boll_up,
-                      "price:", bar.close_price, "gloden-cross open", "trading:", self.trading)
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "close_up:", self.boll_up,
+                      "close:", bar.close_price, "gloden-cross open", "trading:", self.trading)
 
             elif self.pos < 0:
                 # 有空头，碰到金叉后，先超价立即平仓
                 # 反向单先发本地单，等待下一根bar一起撮合，并且开启做多监测
-                self.boll_up, self.boll_down = am.boll(self.slow_window, self.std_dev)
-
                 self.cover(bar.close_price * self.limit_up, abs(self.pos), False)
                 self.buy(self.boll_up, 1, True)
                 self.watch_long = True
 
-                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_up:", self.boll_up,
-                      "price:", bar.close_price, "gloden-cross close and open")
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "close_up:", self.boll_up,
+                      "close:", bar.close_price, "gloden-cross close and open")
 
         elif cross_below:
             self.cancel_all()
             self.watch_long = False
 
-            if self.pos == 0:
-                self.boll_up, self.boll_down = am.boll(self.slow_window, self.std_dev)
+            base_ma = am.sma(self.fast_window)
+            atr_value = am.atr(self.slow_window) * self.atr_multi
+            self.boll_down = base_ma - atr_value
 
+            if self.pos == 0:
                 self.short(self.boll_down, 1, True)
+
                 if self.trading:
                     self.watch_short = True
 
-                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_down:", self.boll_down,
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "close_down:", self.boll_down,
                       "close:", bar.close_price, "dead-cross open", "trading:", self.trading)
             elif self.pos > 0:
-                self.boll_up, self.boll_down = am.boll(self.slow_window, self.std_dev)
-
                 self.sell(bar.close_price * self.limit_down, abs(self.pos), False)
                 self.short(self.boll_down, 1, True)
                 self.watch_short = True
 
-                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "boll_down:", self.boll_down,
+                self.say_log("Signal:", bar.datetime, "pos:", self.pos, "close_down:", self.boll_down,
                       "close:", bar.close_price, "dead-cross close and open")
         
         self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'watch-long:',
