@@ -39,6 +39,7 @@ from strategy.double_ma_rsi_strategy import DoubleMaRsiStrategy
 from strategy.double_ma_std_strategy import DoubleMaStdStrategy
 from strategy.double_ma_atr_strategy import DoubleMaAtrStrategy
 from strategy.double_ma_atr_b_strategy import DoubleMaAtrBStrategy
+from strategy.double_ma_exit_ma_strategy import DoubleMaExitMaStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -61,7 +62,8 @@ strategy_class_map = {
     'double_ma_rsi': DoubleMaRsiStrategy,
     'double_ma_std': DoubleMaStdStrategy,
     'double_ma_atr': DoubleMaAtrStrategy,
-    'double_ma_atr_plus_ma': DoubleMaAtrBStrategy
+    'double_ma_atr_plus_ma': DoubleMaAtrBStrategy,
+    'double_ma_exit_ma': DoubleMaExitMaStrategy
 }
 
 

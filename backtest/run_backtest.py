@@ -6,12 +6,12 @@ from research_backtest import batch_run
 
 
 if __name__ == "__main__":
-    strategy_name = 'double_ma_atr_plus_ma'
+    strategy_name = 'double_ma_exit_ma'
     empty_cost = False
     cost_multiple = 2.0
     interval = 'd'
     keep_last_open = True
-    note_str = 'double_ma_atr_plus_ma_daily'
+    note_str = 'double_ma_exit_ma_daily'
 
     commodity_list = [
         "cu", "al", "zn", "pb", "ni", "sn", "au", "ag", "rb", "hc", "bu", "ru", "sp",
@@ -24,9 +24,11 @@ if __name__ == "__main__":
     # commodity_list = ["sp"]
 
     turtle_gen = OptimizationSetting()
-    turtle_gen.add_parameter("fast_window", 5, 10, 5)
-    turtle_gen.add_parameter("slow_window", 20)
-    turtle_gen.add_parameter("atr_multi", 0.0, 2.0, 0.5)
+    turtle_gen.add_parameter("fast_window", 5)
+    turtle_gen.add_parameter("slow_window", 20, 50, 10)
+    turtle_gen.add_parameter("atr_multi", 0.0, 1.0, 0.5)
+    turtle_gen.add_parameter("mid_multi", 0.5, 0.8, 0.1)
+
 
     # turtle_gen.add_parameter("entry_window", 5, 10, 5)
     # turtle_gen.add_parameter("exit_window", 20)
