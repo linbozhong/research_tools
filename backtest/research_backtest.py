@@ -40,6 +40,7 @@ from strategy.double_ma_std_strategy import DoubleMaStdStrategy
 from strategy.double_ma_atr_strategy import DoubleMaAtrStrategy
 from strategy.double_ma_atr_b_strategy import DoubleMaAtrBStrategy
 from strategy.double_ma_exit_ma_strategy import DoubleMaExitMaStrategy
+from strategy.double_ma_exit_ma_rein_strategy import DoubleMaExitMaReinStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -63,7 +64,8 @@ strategy_class_map = {
     'double_ma_std': DoubleMaStdStrategy,
     'double_ma_atr': DoubleMaAtrStrategy,
     'double_ma_atr_plus_ma': DoubleMaAtrBStrategy,
-    'double_ma_exit_ma': DoubleMaExitMaStrategy
+    'double_ma_exit_ma': DoubleMaExitMaStrategy,
+    'double_ma_exit_ma_rein': DoubleMaExitMaReinStrategy
 }
 
 
@@ -290,7 +292,7 @@ def run_research_backtest(
     day_res = engine.calculate_statistics()
     
     if curve_output:
-        img_name = f'{strategy_name}.{commodity}.{params_str}.{custom_note}.pnl-curve.jpg'
+        img_name = f'{strategy_name}.{commodity}.{params_str}.{custom_note}.pnl-curve.png'
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(1, 1, 1)
         ax.set_title(f'{commodity}-{params_str}-{custom_note} Balance Curve')

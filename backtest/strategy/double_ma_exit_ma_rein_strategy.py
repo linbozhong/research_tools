@@ -15,7 +15,7 @@ class DoubleMaExitMaReinStrategy(CtaTemplate):
     # 入场用快均线和慢均线交叉加过滤器，快均线一般固定为5，相当于使用单均线入场
     # 出场用满均线的.x系数的均线出场，出场后在反向信号触发前有n次重新入场的机会（通道入场）。
     author = "double_ma_exit_ma_rein"
-    is_say_log = False
+    is_say_log = True
 
     fast_window = 20
     slow_window = 40
@@ -29,7 +29,7 @@ class DoubleMaExitMaReinStrategy(CtaTemplate):
     slow_ma0 = 0.0
     slow_ma1 = 0.0
 
-    parameters = ["fast_window", "slow_window", "atr_multi", "mid_multi"]
+    parameters = ["fast_window", "slow_window", "atr_multi", "mid_multi", "max_rein"]
     variables = ["fast_ma0", "fast_ma1", "slow_ma0", "slow_ma1"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -54,6 +54,8 @@ class DoubleMaExitMaReinStrategy(CtaTemplate):
         self.short_rein = False
         self.long_rein_count = 0
         self.short_rein_count = 0
+        self.rein_highest = 0
+        self.rein_lowest = 0
 
     def on_init(self):
         """
@@ -118,24 +120,37 @@ class DoubleMaExitMaReinStrategy(CtaTemplate):
             self.short(self.boll_down, 1, True)
             self.say_log("watchShort:", bar.datetime, "boll_down:", self.boll_down)
 
+        # 重新入场监测
         if self.long_rein and self.pos == 0:
             up, down = am.donchian(self.slow_window)
+            # up = self.rein_highest
             self.buy(up, 1, True)
-            self.say_log("ReinLong:", bar.datetime, "rein_up:", up)
+            self.say_log("ReinLong:", bar.datetime, "rein_up:", up, "long_rein_count:", self.long_rein_count)
 
         if self.short_rein and self.pos == 0:
             up, down = am.donchian(self.slow_window)
+            # down = self.rein_lowest
             self.short(down, 1, True)
-            self.say_log("ReinShort:", bar.datetime, "rein_down:", down)
+            self.say_log("ReinShort:", bar.datetime, "rein_down:", down, "short_rein_count:", self.short_rein_count)
             
+        # 计算前高前低
+        if self.pos == 0:
+            if not self.long_rein and not self.short_rein:
+                self.rein_highest = bar.high_price
+                self.rein_lowest = bar.low_price
+
 
         # 快速出场条件
         if self.pos > 0:
+            self.rein_highest = max(self.rein_highest, bar.high_price)
+
             mid_ma = am.sma(int(self.slow_window * self.mid_multi))
             self.sell(mid_ma, abs(self.pos), True)
             self.say_log("Close-Long-Ahead:", bar.datetime, 'mid_ma:', mid_ma)
 
         if self.pos < 0:
+            self.rein_lowest = min(self.rein_lowest, bar.low_price)
+
             mid_ma = am.sma(int(self.slow_window * self.mid_multi))
             self.cover(mid_ma, abs(self.pos), True)
             self.say_log("Close-Short-Ahead:", bar.datetime, 'mid_ma:', mid_ma)
@@ -200,7 +215,9 @@ class DoubleMaExitMaReinStrategy(CtaTemplate):
                       "close:", bar.close_price, "dead-cross close and open")
         
         self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'watch-long:',
-              self.watch_long, 'watch_short:', self.watch_short)
+                     self.watch_long, 'watch_short:', self.watch_short, 'long-rein:',
+                     self.long_rein, 'short-rein:', self.short_rein,
+                     'highest:', self.rein_highest, 'lowest:', self.rein_lowest)
         self.say_log('==' * 50)
 
         self.put_event()
@@ -218,8 +235,10 @@ class DoubleMaExitMaReinStrategy(CtaTemplate):
         if trade.offset == Offset.OPEN:
             if trade.direction == Direction.LONG:
                 self.watch_long = False
+                self.long_rein = False
             else:
                 self.watch_short = False
+                self.short_rein = False
         else:
             # 交易时做多平仓（平空头），并且不是由于双均线交叉触发的，开启重新入场监测
             if trade.direction == Direction.LONG and not self.watch_long:
