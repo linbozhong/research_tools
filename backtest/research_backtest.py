@@ -41,6 +41,7 @@ from strategy.double_ma_atr_strategy import DoubleMaAtrStrategy
 from strategy.double_ma_atr_b_strategy import DoubleMaAtrBStrategy
 from strategy.double_ma_exit_ma_strategy import DoubleMaExitMaStrategy
 from strategy.double_ma_exit_ma_rein_strategy import DoubleMaExitMaReinStrategy
+from strategy.double_ma_exit_atr_rein_strategy import DoubleMaExitAtrReinStrategy
 
 import vnpy
 print(vnpy.__version__)
@@ -65,7 +66,8 @@ strategy_class_map = {
     'double_ma_atr': DoubleMaAtrStrategy,
     'double_ma_atr_plus_ma': DoubleMaAtrBStrategy,
     'double_ma_exit_ma': DoubleMaExitMaStrategy,
-    'double_ma_exit_ma_rein': DoubleMaExitMaReinStrategy
+    'double_ma_exit_ma_rein': DoubleMaExitMaReinStrategy,
+    'double_ma_exit_atr_rein': DoubleMaExitAtrReinStrategy
 }
 
 
@@ -371,7 +373,7 @@ def batch_run(
     df.to_csv(get_output_path(file_name, 'multi_backtest', note_str), index=False)
 
 
-def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
+def analyze_multi_bt(filename: str, note: str = 'default', log_diff: bool = True) -> dict:
     test_name = filename.replace('.csv', '')
     
     folder = 'multi_backtest'
@@ -385,9 +387,10 @@ def analyze_multi_bt(filename: str, note: str = 'default') -> dict:
     balance_diff = df['day_end_balance'].map(lambda x: round(x)) - df['trade_end_balance'].map(lambda x: round(x))
     balance_not_same = np.abs(balance_diff) > 10
     if sum(balance_not_same) > 0:
-        print(sum(balance_not_same))
-        print(f"{test_name} Trade end balance is not same with Day end balance")
-        # print(df[balance_not_same])
+        if log_diff:
+            print(sum(balance_not_same))
+            print(f"{test_name} Trade end balance is not same with Day end balance")
+            # print(df[balance_not_same])
 
     balance_negitive = df['day_end_balance'] < 0
     neg_num = sum(balance_negitive)

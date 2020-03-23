@@ -1,17 +1,23 @@
+import sys
+import os
+import numpy as np
+from pathlib import Path
+new_version_path = Path(os.getenv('VNPY2.0.8'))
+sys.path.insert(0, str(new_version_path))
+
 import multiprocessing
 from vnpy.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSetting
 
 from research_backtest import batch_run
 
 
-
 if __name__ == "__main__":
-    strategy_name = 'double_ma_exit_ma'
+    strategy_name = 'double_ma_exit_atr_rein'
     empty_cost = False
     cost_multiple = 2.0
     interval = 'd'
     keep_last_open = True
-    note_str = 'double_ma_exit_ma_daily'
+    note_str = 'double_ma_exit_atr_rein_daily'
 
     commodity_list = [
         "cu", "al", "zn", "pb", "ni", "sn", "au", "ag", "rb", "hc", "bu", "ru", "sp",
@@ -25,9 +31,10 @@ if __name__ == "__main__":
 
     turtle_gen = OptimizationSetting()
     turtle_gen.add_parameter("fast_window", 5)
-    turtle_gen.add_parameter("slow_window", 20, 50, 10)
-    turtle_gen.add_parameter("atr_multi", 0.0, 1.0, 0.5)
-    turtle_gen.add_parameter("mid_multi", 0.5, 0.8, 0.1)
+    turtle_gen.add_parameter("slow_window", 50)
+    turtle_gen.add_parameter("atr_multi", 1.0, 2.5, 0.5)
+    turtle_gen.add_parameter("exit_atr_multi", 2, 4, 1)
+    turtle_gen.add_parameter("max_rein", 1, 3, 1)
 
 
     # turtle_gen.add_parameter("entry_window", 5, 10, 5)
