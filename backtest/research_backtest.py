@@ -20,55 +20,16 @@ from vnpy.trader.constant import Offset
 from utility import comodity_to_vt_symbol, get_output_path, vt_trade_to_df, trade_zh_to_en, get_output_folder, load_data
 from backtesting import ResearchBacktestingEngine
 from trade_match import calculate_trades_result, generate_trade_df, exhaust_trade_result
-
-from strategy.turtle_b_strategy import TurtleBStrategy
-from strategy.turtle_c_strategy import TurtleCStrategy
-from strategy.turtle_d_strategy import TurtleDStrategy
-from strategy.turtle_e_strategy import TurtleEStrategy
-
-from strategy.turtle_rsi_strategy import TurtleRsiFilterStrategy
-from strategy.turtle_fluid_strategy import TurtleFluidSizeStrategy
-
-from strategy.boll_channel_strategy import BollChannelStrategy
-from strategy.boll_ma_strategy import BollMaStrategy
-from strategy.boll_ma_rsi_strategy import BollMaRsiStrategy
-from strategy.boll_ma_fluid_strategy import BollFluidStrategy
-
-from strategy.double_ma_strategy import DoubleMaStrategy
-from strategy.double_ma_rsi_strategy import DoubleMaRsiStrategy
-from strategy.double_ma_std_strategy import DoubleMaStdStrategy
-from strategy.double_ma_atr_strategy import DoubleMaAtrStrategy
-from strategy.double_ma_atr_b_strategy import DoubleMaAtrBStrategy
-from strategy.double_ma_exit_ma_strategy import DoubleMaExitMaStrategy
-from strategy.double_ma_exit_ma_rein_strategy import DoubleMaExitMaReinStrategy
-from strategy.double_ma_exit_atr_rein_strategy import DoubleMaExitAtrReinStrategy
+from basic_data import future_basic_data, future_hot_start
+from strategy import strategy_class_map
 
 import vnpy
 print(vnpy.__version__)
 
-future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
-future_hot_start = pd.read_csv('future_hot_start.csv', index_col=0,  header=None, names=['hot_start'])
-
-strategy_class_map = {
-    'turtle': TurtleBStrategy,
-    'turtle_inverse_trade': TurtleCStrategy,
-    'turtle_exit_ma': TurtleDStrategy,
-    'turtle_entry_following_stop': TurtleEStrategy,
-    'turtle_rsi_filter': TurtleRsiFilterStrategy,
-    'turtle_fluid_size': TurtleFluidSizeStrategy,
-    'boll': BollChannelStrategy,
-    'boll_exit_ma': BollMaStrategy,
-    'boll_ma_rsi': BollMaRsiStrategy,
-    'boll_fluid': BollFluidStrategy,
-    'double_ma': DoubleMaStrategy,
-    'double_ma_rsi': DoubleMaRsiStrategy,
-    'double_ma_std': DoubleMaStdStrategy,
-    'double_ma_atr': DoubleMaAtrStrategy,
-    'double_ma_atr_plus_ma': DoubleMaAtrBStrategy,
-    'double_ma_exit_ma': DoubleMaExitMaStrategy,
-    'double_ma_exit_ma_rein': DoubleMaExitMaReinStrategy,
-    'double_ma_exit_atr_rein': DoubleMaExitAtrReinStrategy
-}
+print(future_basic_data)
+print(future_hot_start)
+# future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
+# future_hot_start = pd.read_csv('future_hot_start.csv', index_col=0,  header=None, names=['hot_start'])
 
 
 def get_hot_start(commodity: str) -> datetime:
@@ -238,7 +199,7 @@ def run_research_backtest(
 
     if not strategy_name:
         strategy_name = 'turtle'
-        strategy_class = TurtleBStrategy
+        strategy_class = strategy_class_map['turtle']
     else:
         strategy_class = strategy_class_map[strategy_name]
 

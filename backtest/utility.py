@@ -13,6 +13,7 @@ from vnpy.trader.utility import extract_vt_symbol
 from strategy.boll_channel_strategy import BollChannelStrategy
 from strategy.turtle_signal_strategy import TurtleSignalStrategy
 from backtesting import SegBacktestingEngine
+from basic_data import future_basic_data, future_hot_start, dominant_data
 
 DAY_START = dt_time(8)
 DAY_END = dt_time(16)
@@ -48,8 +49,8 @@ compare_items = [
     'return_drawdown_ratio'
 ]
 
-dominant_data = pd.read_csv('dominant_data.csv', parse_dates=[1, 2])
-future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
+# dominant_data = pd.read_csv('dominant_data.csv', parse_dates=[1, 2])
+# future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
 
 def trade_zh_to_en(trade_df: pd.DataFrame) -> pd.DataFrame:
     trade_df['direction'] = trade_df['direction'].map(zh_to_en)
@@ -278,7 +279,7 @@ def single_backtest(
 
 
 def get_trading_date() -> pd.Series:
-    df = pd.read_csv('trading_date.csv', usecols=[1], parse_dates=[0])
+    df = pd.read_csv('source_data/trading_date.csv', usecols=[1], parse_dates=[0])
     return df['trading_day']
 
 
