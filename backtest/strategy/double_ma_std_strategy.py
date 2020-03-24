@@ -12,6 +12,8 @@ from vnpy.trader.constant import Interval
 
 
 class DoubleMaStdStrategy(CtaTemplate):
+    # 均线交叉产生入场观察信号，突破慢均线的标准差通道后才开始真正做单
+    # 交叉立即产生出场信号
     author = "double_ma_std"
     is_say_log = False
 

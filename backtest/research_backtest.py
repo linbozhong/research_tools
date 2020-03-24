@@ -26,12 +26,6 @@ from strategy import strategy_class_map
 import vnpy
 print(vnpy.__version__)
 
-print(future_basic_data)
-print(future_hot_start)
-# future_basic_data = pd.read_csv('future_basic_data.csv', index_col=0)
-# future_hot_start = pd.read_csv('future_hot_start.csv', index_col=0,  header=None, names=['hot_start'])
-
-
 def get_hot_start(commodity: str) -> datetime:
     start = future_hot_start.loc[commodity.upper()]['hot_start']
     start = datetime.strptime(start, '%Y-%m-%d')

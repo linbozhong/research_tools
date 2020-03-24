@@ -12,6 +12,7 @@ from vnpy.trader.constant import Interval
 
 
 class DoubleMaAtrStrategy(CtaTemplate):
+    # 双均线+过滤器（收盘价+atr）
     author = "double_ma_atr"
     is_say_log = False
 

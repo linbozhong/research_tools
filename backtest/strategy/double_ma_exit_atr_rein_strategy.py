@@ -12,8 +12,8 @@ from vnpy.trader.constant import Interval, Direction, Offset
 
 
 class DoubleMaExitAtrReinStrategy(CtaTemplate):
-    # 入场用快均线和慢均线交叉加过滤器，快均线一般固定为5，相当于使用单均线入场
-    # 出场用最高价-atr倍数出场，出场后在反向信号触发前有n次重新入场的机会（通道入场）。
+    # 入场用快均线和慢均线交叉加过滤器（收盘价+atr），快均线一般固定为5，相当于使用单均线入场
+    # 出场用最高价-atr倍数出场（跟踪止损），出场后在反向信号触发前有n次重新入场的机会（通道入场）。
     author = "double_ma_exit_atr_rein"
     is_say_log = False
 

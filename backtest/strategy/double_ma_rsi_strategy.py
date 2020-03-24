@@ -12,6 +12,7 @@ from vnpy.trader.constant import Interval
 
 
 class DoubleMaRsiStrategy(CtaTemplate):
+    # 在双均线基础上增加rsi多空过滤
     author = "double_ma_rsi"
 
     fast_window = 20

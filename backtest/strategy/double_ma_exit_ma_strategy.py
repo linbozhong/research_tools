@@ -12,7 +12,7 @@ from vnpy.trader.constant import Interval, Direction
 
 
 class DoubleMaExitMaStrategy(CtaTemplate):
-    # 入场用快均线和慢均线交叉加过滤器，快均线一般固定为5，相当于使用单均线入场
+    # 入场用快均线和慢均线交叉加过滤器（收盘价+atr），快均线一般固定为5，相当于使用单均线入场
     # 出场用满均线的.x系数的均线出场，相当于更快出场，但是有可能会错过很大的行情。
     author = "double_ma_exit_ma"
     is_say_log = False

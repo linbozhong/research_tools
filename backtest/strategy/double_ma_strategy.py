@@ -12,6 +12,10 @@ from vnpy.trader.constant import Interval
 
 
 class DoubleMaStrategy(CtaTemplate):
+    # 原始的双均线策略，但是发单模拟市价发单，既不是限价单，也不是停止单。
+    # 限价单可能不会成交，无法确保信号成交。
+    # 停止单的话如果碰到更有利的价格也不会成交，所以也无法确保信号成交。
+    # 回测用简单方法模拟市价，运行实盘时需要做更改，用涨跌停价发限价单实现。
     author = "double_ma_original"
 
     fast_window = 20
