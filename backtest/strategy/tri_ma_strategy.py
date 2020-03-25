@@ -34,6 +34,8 @@ class TriMaStrategy(CtaTemplate):
     slow_ma0 = 0.0
     slow_ma1 = 0.0
 
+    rsi = 0.0
+
     parameters = ["fast_window", "slow_window", "mid_window", "atr_multi", "mid_multi"]
     variables = ["fast_ma0", "fast_ma1", "slow_ma0", "slow_ma1"]
 
@@ -110,6 +112,8 @@ class TriMaStrategy(CtaTemplate):
         self.slow_ma0 = slow_ma[-1]
         self.slow_ma1 = slow_ma[-2]
 
+        rsi = am.rsi(self.fast_window)
+
         first_cross_over = self.fast_ma0 > self.mid_ma0 and self.fast_ma1 < self.mid_ma1
         first_cross_below = self.fast_ma0 < self.mid_ma0 and self.fast_ma1 > self.mid_ma1
 
@@ -127,12 +131,12 @@ class TriMaStrategy(CtaTemplate):
 
         # 提前平仓
         # if self.pos > 0:
-        #     mid_ma = am.sma(int(self.slow_window * self.mid_multi))
+        #     mid_ma = am.sma(self.mid_window)
         #     self.sell(mid_ma, abs(self.pos), True)
         #     self.say_log("Close-Long-Ahead:", bar.datetime, 'mid_ma:', mid_ma)
 
         # if self.pos < 0:
-        #     mid_ma = am.sma(int(self.slow_window * self.mid_multi))
+        #     mid_ma = am.sma(self.mid_window)
         #     self.cover(mid_ma, abs(self.pos), True)
         #     self.say_log("Close-Short-Ahead:", bar.datetime, 'mid_ma:', mid_ma)
 
@@ -148,28 +152,28 @@ class TriMaStrategy(CtaTemplate):
 
             if self.pos == 0:
                 # 中线大于慢线，立即发出模拟市价单
-                if self.mid_ma0 > self.slow_ma0:
+                if self.mid_ma0 > self.slow_ma0 and rsi > 50:
                     self.buy(bar.close_price * self.limit_up, 1, False)
                 else:
                     if self.trading:
                         self.watch_long = True
 
-                self.say_log("Signal-A:", bar.datetime, "pos:", self.pos, "entry_up:", self.entry_up,
-                      "close:", bar.close_price, "gloden-cross open", "trading:", self.trading)
+                self.say_log("Signal-A gloden-cross open:", bar.datetime, "pos:", self.pos, "entry_up:", self.entry_up,
+                      "close:", bar.close_price, "trading:", self.trading, "RSI:", rsi)
 
             elif self.pos < 0:
                 # 有空头，碰到金叉后，先超价立即平仓
                 self.cover(bar.close_price * self.limit_up, abs(self.pos), False)
 
                 # 检查是否入场
-                if self.mid_ma0 > self.slow_ma0:
+                if self.mid_ma0 > self.slow_ma0 and rsi > 50:
                     self.buy(bar.close_price * self.limit_up, 1, False)
                 else:
                     if self.trading:
                         self.watch_long = True
 
-                self.say_log("Signal-A:", bar.datetime, "pos:", self.pos, "entry_up:", self.entry_up,
-                      "close:", bar.close_price, "gloden-cross close and open")
+                self.say_log("Signal-A gloden-cross close and open:", bar.datetime, "pos:", self.pos, "entry_up:", self.entry_up,
+                      "close:", bar.close_price, "RSI:", rsi)
 
         elif first_cross_below:
             # self.cancel_all()
@@ -179,25 +183,25 @@ class TriMaStrategy(CtaTemplate):
             # self.boll_down = bar.close_price - atr_value
 
             if self.pos == 0:
-                if self.mid_ma0 < self.slow_ma0:
+                if self.mid_ma0 < self.slow_ma0 and rsi < 50:
                     self.short(bar.close_price * self.limit_down, 1, False)
                 else:
                     if self.trading:
                         self.watch_short = True
 
-                self.say_log("Signal-A:", bar.datetime, "pos:", self.pos, "entry_down:", self.entry_down,
-                      "close:", bar.close_price, "dead-cross open", "trading:", self.trading)
+                self.say_log("Signal-A dead-cross open:", bar.datetime, "pos:", self.pos, "entry_down:", self.entry_down,
+                      "close:", bar.close_price, "trading:", self.trading, "RSI:", rsi)
             elif self.pos > 0:
                 self.sell(bar.close_price * self.limit_down, abs(self.pos), False)
 
-                if self.mid_ma0 < self.slow_ma0:
+                if self.mid_ma0 < self.slow_ma0 and rsi < 50:
                     self.short(bar.close_price * self.limit_down, 1, False)
                 else:
                     if self.trading:
                         self.watch_short = True
 
-                self.say_log("Signal-A:", bar.datetime, "pos:", self.pos, "entry_down:", self.entry_down,
-                      "close:", bar.close_price, "dead-cross close and open")
+                self.say_log("Signal-A dead-cross close and open:", bar.datetime, "pos:", self.pos, "entry_down:", self.entry_down,
+                      "close:", bar.close_price, "", "RSI:", rsi)
         
         self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'watch-long:',
               self.watch_long, 'watch_short:', self.watch_short)

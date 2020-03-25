@@ -21,6 +21,7 @@ from .double_ma_exit_ma_rein_strategy import DoubleMaExitMaReinStrategy
 from .double_ma_exit_atr_rein_strategy import DoubleMaExitAtrReinStrategy
 
 from .tri_ma_strategy import TriMaStrategy
+from .macd_strategy import MacdStrategy
 
 
 strategy_class_map = {
@@ -42,5 +43,6 @@ strategy_class_map = {
     'double_ma_exit_ma': DoubleMaExitMaStrategy,
     'double_ma_exit_ma_rein': DoubleMaExitMaReinStrategy,
     'double_ma_exit_atr_rein': DoubleMaExitAtrReinStrategy,
-    'tri_ma': TriMaStrategy
+    'tri_ma': TriMaStrategy,
+    'macd': MacdStrategy
 }
