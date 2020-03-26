@@ -29,6 +29,8 @@ class MacdStrategy(CtaTemplate):
 
     pre_macd = 0.0
     now_macd = 0.0
+    pre_hist = 0.0
+    now_hist = 0.0
 
     parameters = ["fast_window", "slow_window"]
     variables = []
@@ -86,6 +88,7 @@ class MacdStrategy(CtaTemplate):
 
         self.macd, self.signal, self.hist = am.macd(self.fast_window, self.slow_window, self.signal_period, True)
         self.now_macd = self.macd[-1]
+        self.now_hist = self.hist[-1]
 
         macd_cross_over = self.pre_macd < 0 and self.now_macd > 0
         macd_cross_below = self.pre_macd > 0 and self.now_macd < 0
@@ -107,10 +110,12 @@ class MacdStrategy(CtaTemplate):
                 self.short(bar.close_price * self.limit_down, 1, False)
             self.say_log('signal-short:', bar.datetime, 'pos:', self.pos, 'close:', bar.close_price)
 
-        self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'now-macd:', self.now_macd, 'pre-macd', self.pre_macd)
+        self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'now-macd:', self.now_macd,
+                     'pre-macd', self.pre_macd, 'now-hist', self.now_hist, 'pre-hist', self.pre_hist)
         self.say_log('==' * 50)
 
         self.pre_macd = self.now_macd
+        self.pre_hist = self.now_hist
         self.put_event()
 
     def on_order(self, order: OrderData):
