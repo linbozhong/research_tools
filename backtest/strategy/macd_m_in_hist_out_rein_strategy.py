@@ -11,10 +11,10 @@ from vnpy.app.cta_strategy import (
 from vnpy.trader.constant import Interval, Direction, Offset
 
 
-class MacdExitAtrReinStrategy(CtaTemplate):
-    # hist穿刺o轴触发观察信号，空仓立即入场。同向忽略，反向仓平仓后如果还是在信号方向则也立即入场。
+class MacdMinHoutReinStrategy(CtaTemplate):
+    # macd穿刺零轴产生入场信号，hist穿刺零轴产生出场信号，一般出场信号先于反向的入场信号
     # 出场（初始止损）+ ATR跟踪止损结合
-    author = "macd_exit_atr_rein"
+    author = "macd_m_in_hist_out_rein"
     is_say_log = True
 
     fast_window = 15
@@ -35,6 +35,8 @@ class MacdExitAtrReinStrategy(CtaTemplate):
 
     pre_hist = 0.0
     now_hist = 0.0
+    pre_macd = 0.0
+    now_macd = 0.0
 
     atr_value = 0.0
 
@@ -55,7 +57,7 @@ class MacdExitAtrReinStrategy(CtaTemplate):
     long_rein_count = 0
     short_rein_count = 0
 
-    parameters = ["fast_window", "slow_window", "atr_multi", "exit_atr_multi", "max_rein"]
+    parameters = ["fast_window", "slow_window", "atr_multi", "exit_atr_multi", "max_rein", "signal_period"]
     variables = ["pre_hist", "now_hist"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -113,6 +115,7 @@ class MacdExitAtrReinStrategy(CtaTemplate):
         self.atr_value = am.atr(self.slow_window)
 
         self.macd, self.signal, self.hist = am.macd(self.fast_window, self.slow_window, self.signal_period, True)
+        self.now_macd = self.macd[-1]
         self.now_hist = self.hist[-1]
 
         # 计算前高前低
@@ -120,10 +123,19 @@ class MacdExitAtrReinStrategy(CtaTemplate):
             if not self.long_rein and not self.short_rein:
                 self.pre_highest = bar.high_price
                 self.pre_lowest = bar.low_price
+        elif self.pos > 0:
+            self.pre_highest = max(self.pre_highest, bar.high_price)
+        elif self.pos < 0:
+            self.pre_lowest = min(self.pre_lowest, bar.low_price)
+
+
+        macd_cross_over = self.pre_macd < 0 and self.now_macd > 0
+        macd_cross_below = self.pre_macd > 0 and self.now_macd < 0
 
         hist_cross_over = self.pre_hist < 0 and self.now_hist > 0
         hist_cross_below = self.pre_hist > 0 and self.now_hist < 0
 
+        self.pre_macd = self.now_macd
         self.pre_hist = self.now_hist
 
         # 根据条件发出本地单
@@ -144,34 +156,44 @@ class MacdExitAtrReinStrategy(CtaTemplate):
             self.short(self.pre_lowest, 1, True)
             self.say_log("ReinShort:", bar.datetime, "pre-low:", self.pre_lowest, "short_rein_count:", self.short_rein_count)
 
+        # 出场信号
+        if hist_cross_below and self.pos > 0:
+            self.sell(bar.close_price * self.limit_down, abs(self.pos), False)
+            self.say_log("Close-Long:", bar.datetime, 'close:', bar.close_price)
+
+        if hist_cross_over and self.pos < 0:
+            self.cover(bar.close_price * self.limit_up, abs(self.pos), False)
+            self.say_log("Close-short:", bar.datetime, 'close:', bar.close_price)
+            
+
         # 初始止损 + ATR跟踪止损 + 补入场
-        if self.pos > 0:
-            self.pre_highest = max(self.pre_highest, bar.high_price)
-            self.follow_long_stop = self.pre_highest - self.atr_value * self.exit_atr_multi
-            price = max(self.init_long_stop, self.follow_long_stop)
-            self.sell(price, abs(self.pos), True)
+        # if self.pos > 0:
+            # self.pre_highest = max(self.pre_highest, bar.high_price)
+        #     self.follow_long_stop = self.pre_highest - self.atr_value * self.exit_atr_multi
+        #     price = max(self.init_long_stop, self.follow_long_stop)
+        #     self.sell(price, abs(self.pos), True)
 
-            self.say_log("Sell-long-stop:", bar.datetime, 'init_long_stop:',
-                         self.init_long_stop, 'follow_long_stop:', self.follow_long_stop)
+        #     self.say_log("Sell-long-stop:", bar.datetime, 'init_long_stop:',
+        #                  self.init_long_stop, 'follow_long_stop:', self.follow_long_stop)
 
-            # 持有多头尚未平仓发现触发空头信号，则发出本地单，待平仓时立即反向开仓
-            if self.watch_short:
-                self.short(price, 1, True)
+        #     # 持有多头尚未平仓发现触发空头信号，则发出本地单，待平仓时立即反向开仓
+        #     if self.watch_short:
+        #         self.short(price, 1, True)
 
-        if self.pos < 0:
-            self.pre_lowest = min(self.pre_lowest, bar.low_price)
-            self.follow_short_stop = self.pre_lowest + self.atr_value * self.exit_atr_multi
-            price = min(self.init_short_stop, self.follow_short_stop)
-            self.cover(price, abs(self.pos), True)
+        # if self.pos < 0:
+        #     self.pre_lowest = min(self.pre_lowest, bar.low_price)
+        #     self.follow_short_stop = self.pre_lowest + self.atr_value * self.exit_atr_multi
+        #     price = min(self.init_short_stop, self.follow_short_stop)
+        #     self.cover(price, abs(self.pos), True)
 
-            self.say_log("Cover-short-stop:", bar.datetime, 'init_short_stop:',
-                         self.init_short_stop, 'follow_short_stop:', self.follow_short_stop)
+        #     self.say_log("Cover-short-stop:", bar.datetime, 'init_short_stop:',
+        #                  self.init_short_stop, 'follow_short_stop:', self.follow_short_stop)
 
-            if self.watch_long:
-                self.buy(price, 1, True)
+        #     if self.watch_long:
+        #         self.buy(price, 1, True)
 
-        # 上穿零轴
-        if hist_cross_over:
+        # 入场信号
+        if macd_cross_over:
             self.cancel_all()
 
             # 取消做空监测和重新做空监测
@@ -195,13 +217,16 @@ class MacdExitAtrReinStrategy(CtaTemplate):
                 self.say_log("Signal-long:", bar.datetime, "pos:", self.pos, "entry_long:", self.entry_long,
                       "close:", bar.close_price, "trading:", self.trading)
             elif self.pos < 0:
-                # 有空仓不立即处理，因为平仓逻辑不是由macd控制的，但是转为观察信号，防止错过“成功反转”的行情
+                # 空头立即平仓，同时发出多头本地单
+                self.cover(bar.close_price * self.limit_up, abs(self.pos), False)
+                self.buy(self.entry_long, 1, True)
                 self.watch_long = True
 
-                self.say_log("Signal-long-neg-pos:", bar.datetime, "pos:", self.pos, bar.close_price)
+                self.say_log("Signal-long-neg-pos:", bar.datetime, "pos:", self.pos, "entry_long:", self.entry_long,
+                      "close:", bar.close_price, "trading:", self.trading)
 
 
-        elif hist_cross_below:
+        elif macd_cross_below:
             self.cancel_all()
 
             self.watch_long = False
@@ -222,10 +247,12 @@ class MacdExitAtrReinStrategy(CtaTemplate):
                       "close:", bar.close_price, "trading:", self.trading)
 
             elif self.pos > 0:
+                self.sell(bar.close_price * self.limit_down, abs(self.pos), False)
+                self.short(self.entry_short, 1, True)
                 self.watch_short = True
 
-                self.say_log("Signal-short-potv-pos:", bar.datetime, "pos:", self.pos, bar.close_price)
-        
+                self.say_log("Signal-short-potv-pos:", bar.datetime, "pos:", self.pos, "entry_short:", self.entry_short,
+                      "close:", bar.close_price, "trading:", self.trading)
 
         self.say_log('datetime:', bar.datetime, 'pos:', self.pos, 'watch-long:',
                      self.watch_long, 'watch_short:', self.watch_short, 'long-rein:',
