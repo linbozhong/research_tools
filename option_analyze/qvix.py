@@ -7,11 +7,10 @@ from pathlib import Path
 from scipy import stats
 from datetime import datetime
 
+from utility import dt_to_str
+
 QVIX_URL = 'http://1.optbbs.com/d/csv/d/vixk.csv'
 
-
-def dt_to_str(dt):
-    return '{:0>4d}-{:>02d}-{:>02d}'.format(dt.year, dt.month, dt.day)
 
 def get_qvix_file():
     return Path.cwd().joinpath('vix_bar.csv')
