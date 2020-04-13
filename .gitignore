@@ -115,3 +115,6 @@ backtest/result/
 backtest/test.ipynb
 backtest/turtle_b_strategy.py
 backtest/server_log/
+
+option_analyze/*.dat
+option_analyze/result/*
