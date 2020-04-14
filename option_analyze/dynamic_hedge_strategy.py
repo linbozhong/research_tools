@@ -14,6 +14,7 @@ from vnpy.app.cta_strategy import (
 class DynamicHedgeStrategy(CtaTemplate):
     """"""
     author = "option underlying dynamic hedge"
+    nick_name = 'dynamic_percent_hedge'
     is_log = False
 
     base_price = 0

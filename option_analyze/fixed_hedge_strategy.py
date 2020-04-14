@@ -14,18 +14,22 @@ from vnpy.app.cta_strategy import (
 class FixedHedgeStrategy(CtaTemplate):
     """"""
     author = "option underlying Fixed hedge"
+    nick_name = 'fixed_hedge'
     is_log = False
 
     base_price = 0
     entry_range = 0.05
 
-    hedge_range = 0.1
-    hedge_multiple = 0.5
+    hedge_range_param = 100
+    hedge_multiple_param = 50
+
+    hedge_range = 0.0
+    hedge_multiple = 0.0
     hedge_size = 10
 
     last_trade_dt = None
 
-    parameters = ['hedge_range', 'hedge_multiple', 'hedge_size']
+    parameters = ['hedge_range_param', 'hedge_multiple_param', 'hedge_size']
     variables = []
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -37,9 +41,12 @@ class FixedHedgeStrategy(CtaTemplate):
         self.bg5 = BarGenerator(self.on_bar, 5, self.on_5min_bar)
         self.am5 = ArrayManager(size=20)
 
+        self.hedge_range = self.hedge_range_param / 1000
+        self.hedge_multiple = self.hedge_multiple_param / 100
+
         self.hedge_size = round(self.hedge_range / 0.1 * 30)
         setting['hedge_size'] = self.hedge_size
-        print("params:", self.hedge_range, self.hedge_multiple, self.hedge_size)
+        print("params:", self.hedge_range, self.hedge_multiple, self.hedge_size, self.strategy_name)
 
     def on_init(self):
         self.write_log("策略初始化")
@@ -112,7 +119,6 @@ class FixedHedgeStrategy(CtaTemplate):
             elif trade.direction == Direction.SHORT and trade.offset == Offset.OPEN:
                 self.base_price -= self.hedge_range * self.hedge_multiple * 2
 
-        
         self.last_trade_dt = trade.datetime
 
 

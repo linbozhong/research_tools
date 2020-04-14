@@ -1,11 +1,13 @@
-import pickle
+import pandas as pd
 from vnpy.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSetting
 from fixed_hedge_strategy import FixedHedgeStrategy
 from datetime import datetime
 from utility import dt_to_str
+from pathlib import Path
 
 if __name__ == "__main__":
-    start = datetime(2014, 1, 1)
+    start = datetime(2019, 1, 1)
+    test_strategy_cls = FixedHedgeStrategy
 
     engine = BacktestingEngine()
     engine.set_parameters(
@@ -19,16 +21,22 @@ if __name__ == "__main__":
         pricetick=0.001,
         capital=1_000_000,
     )
-    engine.add_strategy(FixedHedgeStrategy, {})
+    engine.add_strategy(test_strategy_cls, {})
 
     setting = OptimizationSetting()
     setting.set_target("sharpe_ratio")
-    setting.add_parameter("hedge_range", 0.01, 0.2, 0.01)
-    setting.add_parameter("hedge_multiple", 0.5, 1, 0.5)
+    setting.add_parameter("hedge_range_param", 50, 150, 10)
+    setting.add_parameter("hedge_multiple_param", 50, 100, 10)
     setting.add_parameter("hedge_size", 10)
 
     results = engine.run_optimization(setting)
 
     start_str = dt_to_str(start)
-    with open(f'result/result_{start_str}.dat', 'wb') as f:
-        pickle.dump(results, f)
+    result_dict_list = []
+    for (setting_str, _target, res_dict) in results:
+        res_dict['setting'] = setting_str
+        result_dict_list.append(res_dict)
+    df = pd.DataFrame(result_dict_list)
+
+    fp = Path.cwd().joinpath('result', f'{test_strategy_cls.nick_name}_{start_str}.csv')
+    df.to_csv(fp, index=False)
