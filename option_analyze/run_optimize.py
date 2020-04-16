@@ -6,7 +6,7 @@ from utility import dt_to_str
 from pathlib import Path
 
 if __name__ == "__main__":
-    start = datetime(2019, 1, 1)
+    start = datetime(2019, 4, 1)
     test_strategy_cls = FixedHedgeStrategy
 
     engine = BacktestingEngine()
@@ -25,8 +25,8 @@ if __name__ == "__main__":
 
     setting = OptimizationSetting()
     setting.set_target("sharpe_ratio")
-    setting.add_parameter("hedge_range_param", 50, 150, 10)
-    setting.add_parameter("hedge_multiple_param", 50, 100, 10)
+    setting.add_parameter("hedge_range_param", 10, 200, 10)
+    setting.add_parameter("hedge_multiple_param", 40, 100, 20)
     setting.add_parameter("hedge_size", 10)
 
     results = engine.run_optimization(setting)
