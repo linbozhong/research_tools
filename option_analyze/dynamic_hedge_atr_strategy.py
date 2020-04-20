@@ -1,3 +1,5 @@
+import pandas as pd
+from datetime import datetime
 from vnpy.trader.constant import Direction, Offset
 from vnpy.app.cta_strategy import (
     CtaTemplate,
@@ -11,15 +13,21 @@ from vnpy.app.cta_strategy import (
 )
 
 
-class DynamicHedgeStrategy(CtaTemplate):
+class DynamicHedgeAtrStrategy(CtaTemplate):
     """"""
     author = "option underlying dynamic hedge"
-    nick_name = 'dynamic_percent_hedge'
+    nick_name = 'dynamic_atr_hedge'
     is_log = False
 
     gamma = 300
+
+    # 10倍，使参数整数显示
+    atr_range = 10
+    atr_window = 20
+
     # 千分之
-    hedge_range_percent = 20
+    # hedge_range_percent = 20
+
     # 百分之
     hedge_multiple_percent = 100
 
@@ -27,11 +35,12 @@ class DynamicHedgeStrategy(CtaTemplate):
     hedge_range = 0.0
     move_range = 0.0
     hedge_size = 0
+    atr_value = 0.0
 
     last_trade_dt = None
 
 
-    parameters = ['hedge_range_percent', 'hedge_multiple_percent']
+    parameters = ['atr_range', 'hedge_multiple_percent']
     variables = []
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -43,7 +52,9 @@ class DynamicHedgeStrategy(CtaTemplate):
         self.bg5 = BarGenerator(self.on_bar, 5, self.on_5min_bar)
         self.am5 = ArrayManager(size=20)
 
-        print("params:", self.hedge_range_percent, self.hedge_multiple_percent)
+        self.daily_atr = self.load_daily_art()
+
+        print("params:", self.atr_range, self.hedge_multiple_percent)
 
     def on_init(self):
         self.write_log("策略初始化")
@@ -58,12 +69,24 @@ class DynamicHedgeStrategy(CtaTemplate):
     def on_tick(self, tick: TickData):
         pass
 
+    def load_daily_art(self):
+        df = pd.read_csv('510050_atr.csv', parse_dates=[1], index_col=1)
+        df['id'] = list(range(len(df)))
+        return df
+
+    def get_last_day_atr(self, dt):
+        df = self.daily_atr
+        new_dt = datetime(dt.year, dt.month, dt.day)
+        last_day_id = int(df.loc[new_dt]['id'] - 1)
+        return df.iloc[last_day_id]['atr']
+
     def on_bar(self, bar: BarData):
         self.bg5.update_bar(bar)
 
     def on_5min_bar(self, bar: BarData):
         """"""
-        self.log(bar.datetime, bar.open_price, bar.high_price, bar.low_price, bar.close_price)
+        self.atr_value = self.get_last_day_atr(bar.datetime)
+        self.log(bar.datetime, bar.open_price, bar.high_price, bar.low_price, bar.close_price, 'atr:', self.atr_value)
 
         self.cancel_all()
 
@@ -75,7 +98,7 @@ class DynamicHedgeStrategy(CtaTemplate):
         if not self.base_price:
             if self.trading:
                 self.base_price = round(bar.open_price, 2)
-                self.hedge_range = round(self.base_price * (self.hedge_range_percent / 1000), 2)
+                self.hedge_range = round(self.atr_range / 10 * self.atr_value, 2)
                 self.hedge_size = round(self.hedge_range * self.gamma)
         else:
             up = self.base_price + self.hedge_range
@@ -109,7 +132,7 @@ class DynamicHedgeStrategy(CtaTemplate):
         self.log("Trade:", trade.datetime, trade.direction, trade.offset, trade.price, trade.volume)
         if trade.datetime != self.last_trade_dt:
             # 和上次成交不是同一个时间的成交单，是下一个对冲点的第一笔成交（或只有一笔成交）
-            self.hedge_range = round(self.base_price * (self.hedge_range_percent / 1000), 2)
+            self.hedge_range = round(self.atr_range / 10 * self.atr_value, 2)
             self.move_range = round(self.hedge_range * (self.hedge_multiple_percent / 100), 2)
             self.hedge_size = round(self.move_range * self.gamma)
 
