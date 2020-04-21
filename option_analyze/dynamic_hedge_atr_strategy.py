@@ -40,7 +40,7 @@ class DynamicHedgeAtrStrategy(CtaTemplate):
     last_trade_dt = None
 
 
-    parameters = ['atr_range', 'hedge_multiple_percent']
+    parameters = ['atr_range', 'hedge_multiple_percent', 'is_log']
     variables = []
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -54,7 +54,7 @@ class DynamicHedgeAtrStrategy(CtaTemplate):
 
         self.daily_atr = self.load_daily_art()
 
-        print("params:", self.atr_range, self.hedge_multiple_percent)
+        print("params:", self.atr_range, self.hedge_multiple_percent, self.is_log)
 
     def on_init(self):
         self.write_log("策略初始化")
