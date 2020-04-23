@@ -26,6 +26,8 @@ from .macd_strategy import MacdStrategy
 from .macd_exit_atr_rein_strategy import MacdExitAtrReinStrategy
 from .macd_m_in_hist_out_rein_strategy import MacdMinHoutReinStrategy
 
+from .atr_rsi_strategy import AtrRsiStrategy
+
 
 strategy_class_map = {
     'turtle': TurtleBStrategy,
@@ -49,5 +51,6 @@ strategy_class_map = {
     'tri_ma': TriMaStrategy,
     'macd': MacdStrategy,
     'macd_exit_atr_rein': MacdExitAtrReinStrategy,
-    'macd_m_in_hist_out_rein': MacdMinHoutReinStrategy
+    'macd_m_in_hist_out_rein': MacdMinHoutReinStrategy,
+    'atr_rsi': AtrRsiStrategy
 }
