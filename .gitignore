@@ -119,3 +119,4 @@ backtest/server_log/
 option_analyze/*.dat
 option_analyze/result/*
 option_analyze/daily_bar/*
+option_analyze/minute_bar/*
