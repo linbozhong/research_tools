@@ -5,6 +5,7 @@ import datetime
 import time
 import numpy as np
 from copy import *
+from datetime import timedelta
 
 
 #开始时间，用于初始化一些参数
@@ -12,10 +13,14 @@ def OnStart(context) :
     print("on start is runing..")
     g.auth_name = "linbozhong"
     g.underlying_symbol = "510050.SHSE"
-    
     context.myacc = None
     context.test_var = "hello contetx var"
     
+    g.long_signal = False
+    g.short_signal = False
+    g.call_otm_2 = None
+    g.put_otm_2 = None
+    g.trade_month = None
     
     if context.accounts["option_backtest"].Login() :
         context.myacc = context.accounts["option_backtest"]
@@ -27,7 +32,7 @@ def OnMarketQuotationInitialEx(context, exchange, daynight):
     if exchange != 'SHSE':
         return
     
-#     SubscribeBar(g.underlying_symbol, BarType.Day)
+    SubscribeBar(g.underlying_symbol, BarType.Day)
 
     
     option_list = GetOptionContracts(g.underlying_symbol, 0, 0)
@@ -42,9 +47,9 @@ def OnMarketQuotationInitialEx(context, exchange, daynight):
     
     g.atmopc = GetAtmOptionContract(g.underlying_symbol, 0, last_bar.close, 0)
     contract = GetContractInfo(g.atmopc)
-    print(g.atmopc)
-    print(contract)
-    SubscribeBar(g.atmopc, BarType.Day)
+#     print(g.atmopc)
+#     print(contract)
+#     SubscribeBar(g.atmopc, BarType.Day)
     
 #     print(context.myacc.AccountBalance)
 #     print(g.auth_name)
@@ -55,8 +60,39 @@ def OnMarketQuotationInitialEx(context, exchange, daynight):
 
   
 def OnBar(context, code, bartype):
-    print(code)
+    print("{code}-onBar event running".format(code=code))
+    
+    now = GetCurrentTime().date()
+#     print(('now', now))
+    
+    cur_mon, next_mon, _ns, _nns = GetOptionsLastDates(code)
+    if cur_mon - now < timedelta(days=5):
+        g.trade_month = next_mon
+    else:
+        g.trade_month = cur_mon
+    
+    print(('trade month last day', g.trade_month))
+    
 
+    df = GetHisDataAsDF(code, bar_type = BarType.Day)
+    bar = df.iloc[-1]
+    print((bar.tradedate, bar.open, bar.high, bar.low, bar.close))
+    
+    g.call_otm_2 = GetAtmOptionContractByPos(code, 'open', -2, 0, g.trade_month)
+    g.put_otm_2 = GetAtmOptionContractByPos(code, 'open', -2, 1, g.trade_month)
+    call_op = GetContractInfo(g.call_otm_2)
+    put_op = GetContractInfo((g.put_otm_2))
+    print(call_op)
+    print(put_op)
+    
+    ma_dict = GetIndicator("MA", code, bar_type = BarType.Day, count=100)
+    print(ma_dict)
+    ma5 = ma_dict["MA(5)"]
+    ma10 = ma_dict["MA(10)"]
+    
+    
+    positions = context.myacc.GetPositions()
+    print(positions)
     
     posi = context.myacc.GetPositions() #获取所有持仓
     if len(posi) == 0:
