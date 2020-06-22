@@ -18,9 +18,14 @@ def OnStart(context) :
     
     g.long_signal = False
     g.short_signal = False
+    
     g.call_otm_2 = None
     g.put_otm_2 = None
     g.trade_month = None
+    
+    g.fixed_pos = 10
+    
+    g.option_pos = dict()
     
     if context.accounts["option_backtest"].Login() :
         context.myacc = context.accounts["option_backtest"]
@@ -60,6 +65,12 @@ def OnMarketQuotationInitialEx(context, exchange, daynight):
 
   
 def OnBar(context, code, bartype):
+    # 到期前平仓逻辑
+    
+    
+    # 权利金太低不开仓逻辑
+    
+    
     print("{code}-onBar event running".format(code=code))
     
     now = GetCurrentTime().date()
@@ -75,6 +86,9 @@ def OnBar(context, code, bartype):
     
 
     df = GetHisDataAsDF(code, bar_type = BarType.Day)
+    close_list = df.close.values
+    print(close_list)
+    
     bar = df.iloc[-1]
     print((bar.tradedate, bar.open, bar.high, bar.low, bar.close))
     
@@ -82,26 +96,75 @@ def OnBar(context, code, bartype):
     g.put_otm_2 = GetAtmOptionContractByPos(code, 'open', -2, 1, g.trade_month)
     call_op = GetContractInfo(g.call_otm_2)
     put_op = GetContractInfo((g.put_otm_2))
-    print(call_op)
-    print(put_op)
+    print((g.call_otm_2, call_op))
+    print((g.put_otm_2, put_op))
     
     ma_dict = GetIndicator("MA", code, bar_type = BarType.Day, count=100)
-    print(ma_dict)
+#     print(ma_dict)
     ma5 = ma_dict["MA(5)"]
     ma10 = ma_dict["MA(10)"]
+    ma20 = ma_dict["MA(20)"]
     
+#     print(ma20[0] == 1.7976931348623157e+308)
+#     print(ma20[0])
+
+#     print(ma20)
+
+    if close_list[-2] < ma20[-2] and close_list[-1] > ma20[-1]:
+        print('signal')
+        print(('long day', bar.tradedate, close_list[-1], ma20[-1]))
+        g.long_signal = True
     
-    positions = context.myacc.GetPositions()
-    print(positions)
+    if close_list[-2] > ma20[-2] and close_list[-1] < ma20[-1]:
+        print('signal')
+        print(('short day', bar.tradedate, close_list[-1], ma20[-1]))
+        g.short_signal = True
     
-    posi = context.myacc.GetPositions() #获取所有持仓
-    if len(posi) == 0:
-        print("卖开")
-        #下单卖开,2表示最新价
-        QuickInsertOrder(context.myacc,g.atmopc,'sell','open',PriceType(PbPriceType.Limit,2),10)
-    elif len(posi) >0:
-        opcode = posi[0].contract
-        print("买平")
-        #下单买平,16表示对手价,平掉现有仓位的所有手数
-        QuickInsertOrder(context.myacc,opcode,'buy','close',PriceType(PbPriceType.Limit,16),posi[0].volume)
-    UnsubscribeBar(g.atmopc,BarType.Day)
+#     positions = context.myacc.GetPositions()
+#     print(positions)
+
+
+    call_otm2_pos = g.option_pos.get('call_otm_2', None)
+    put_otm2_pos = g.option_pos.get('put_otm_2', None)
+    
+    if g.long_signal:
+        if call_otm2_pos:
+            print("平虚2档购")
+            op_code = call_otm2_pos['op_code']
+            pos = call_otm2_pos['pos']
+            QuickInsertOrder(context.myacc, op_code, 'buy', 'close',PriceType(PbPriceType.Limit, 16), abs(pos))
+
+            g.option_pos['call_otm_2'] = None
+            g.long_signal = False
+           
+        
+        if not put_otm2_pos:
+            print("卖虚2档沽")
+            QuickInsertOrder(context.myacc, g.put_otm_2, 'sell', 'open', PriceType(PbPriceType.Limit, 16), g.fixed_pos)
+            
+            d = {}
+            d['op_code'] = g.put_otm_2
+            d['pos'] = -g.fixed_pos
+            g.option_pos['put_otm_2'] = d
+            g.long_signal = False
+
+            
+    if g.short_signal:
+        if put_otm2_pos:
+            print("平虚2档沽")
+            op_code = put_otm2_pos['op_code']
+            pos = put_otm2_pos['pos']
+            QuickInsertOrder(context.myacc, op_code, 'buy', 'close',PriceType(PbPriceType.Limit, 16), abs(pos))
+            
+            g.option_pos['put_otm_2'] = None
+            g.short_signal = False
+        
+        if not call_otm2_pos:
+            print("卖虚2档购")
+            QuickInsertOrder(context.myacc, g.call_otm_2, 'sell', 'open', PriceType(PbPriceType.Limit, 16), g.fixed_pos)
+            
+            d = {}
+            d['op_code'] = g.call_otm_2
+            d['pos'] = -g.fixed_pos
+            g.option_pos['call_otm_2'] = d
+            g.short_signal = False
