@@ -48,10 +48,17 @@ def GetStrikePrice(option_code):
     option = GetContractInfo(option_code)
     return option["行权价格"]
 
+def GetExpireDate(option_code):
+    option = GetContractInfo(option_code)
+    return option["最后交易日"]
+
+
+def GetOptionClose(option_code):
+    bars = GetHisData2(option_code, BarType.Day, count=100)
+    return bars[-1].close
+
 
 def MoveContract(context, option_type):
-    # 权利金太低的合约不移仓
-    
     call_otm2_pos = g.option_pos.get('call_otm_2', None)
     put_otm2_pos = g.option_pos.get('put_otm_2', None)
     
@@ -62,13 +69,24 @@ def MoveContract(context, option_type):
         else:
             op_code = call_otm2_pos['op_code']
             if op_code != g.call_otm_2:
+                # 开仓就是下月合约跳过
+                if op_code == g.next_call_otm_2:
+                    return
+                
+                # 权利金太低的合约提前移到下月
+                call_otm_close = GetOptionClose(g.call_otm_2)
+                if call_otm_close < 0.005 and g.next_call_otm_2:
+                    call_otm = g.next_call_otm_2
+                else:
+                    call_otm = g.call_otm_2
+                
                 pos = call_otm2_pos['pos']
                 QuickInsertOrder(context.myacc, op_code, 'buy', 'close',PriceType(PbPriceType.Limit, 16), abs(pos))
-                QuickInsertOrder(context.myacc, g.call_otm_2, 'sell', 'open', PriceType(PbPriceType.Limit, 16), abs(pos))
+                QuickInsertOrder(context.myacc, call_otm, 'sell', 'open', PriceType(PbPriceType.Limit, 16), abs(pos))
 
-                call_otm2_pos['op_code'] = g.call_otm_2
+                call_otm2_pos['op_code'] = call_otm
                 call_otm2_pos['pos'] = -pos
-                print("{old}平仓，{new}开仓".format(old=op_code, new=g.call_otm_2))
+                print("{old}平仓，{new}开仓".format(old=op_code, new=call_otm))
             
     if option_type == "put":
         if not put_otm2_pos:
@@ -76,25 +94,36 @@ def MoveContract(context, option_type):
         else:
             op_code = put_otm2_pos['op_code']
             if op_code != g.put_otm_2:
+#                 print(("沽移仓", op_code, g.put_otm_2))
+                if op_code == g.next_put_otm_2:
+                    return
+                
+                put_otm_close = GetOptionClose(g.put_otm_2)
+                if put_otm_close < 0.005 and g.next_put_otm_2:
+                    put_otm = g.next_put_otm_2
+                else:
+                    put_otm = g.put_otm_2
+                
+                
                 pos = put_otm2_pos['pos']
                 QuickInsertOrder(context.myacc, op_code, 'buy', 'close',PriceType(PbPriceType.Limit, 16), abs(pos))
-                QuickInsertOrder(context.myacc, g.put_otm_2, 'sell', 'open', PriceType(PbPriceType.Limit, 16), abs(pos))
+                QuickInsertOrder(context.myacc, put_otm, 'sell', 'open', PriceType(PbPriceType.Limit, 16), abs(pos))
 
-                put_otm2_pos['op_code'] = g.put_otm_2
+                put_otm2_pos['op_code'] = put_otm
                 put_otm2_pos['pos'] = -pos
-                print("{old}平仓，{new}开仓".format(old=op_code, new=g.put_otm_2))
+                print("{old}平仓，{new}开仓".format(old=op_code, new=put_otm))
               
             
 def GetCallOtm():
-    g.call_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 0, g.trade_month)
+    g.call_otm_2 = GetAtmOptionContractByPos(g.underlying_symbol, 'now', -2, 0, g.trade_month)
     if g.next_month:
-        g.next_call_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 0, g.next_month)
+        g.next_call_otm_2 = GetAtmOptionContractByPos(g.underlying_symbol, 'now', -2, 0, g.next_month)
         
         
 def GetPutOtm():
-    g.put_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 1, g.trade_month)
+    g.put_otm_2 = GetAtmOptionContractByPos(g.underlying_symbol, 'now', -2, 1, g.trade_month)
     if g.next_month:
-        g.next_put_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 1, g.next_month)
+        g.next_put_otm_2 = GetAtmOptionContractByPos(g.underlying_symbol, 'now', -2, 1, g.next_month)
                 
             
 def RefreshOtm():
@@ -108,23 +137,30 @@ def RefreshOtm():
         call_strike = GetStrikePrice(call_op_code)
         close = g.close_list[-1]
         strike_space = call_strike / close - 1
-        if strike_space <= 0.02 or strike_space >= 0.05:
+        if close >= call_strike or strike_space <= 0.02 or strike_space >= 0.05:
+            print('购空间不足或过大')
+            print((call_strike, close, strike_space))
             GetCallOtm()
 
     if not put_otm2_pos:
+        print('no put otm2')
         GetPutOtm()
     else:
         put_op_code = put_otm2_pos['op_code']
         put_strike = GetStrikePrice(put_op_code)
         close = g.close_list[-1]
         strike_space = put_strike / close - 1
-        if strike_space <= 0.02 or strike_space >= 0.05:
+        if close <= put_strike or abs(strike_space) <= 0.02 or abs(strike_space) >= 0.05:
+            print('沽空间不足或过大')
+            print((put_strike, close, strike_space))
             GetPutOtm()
 
         
 def OnBar(context, code, bartype):
     g.close_call = False
     g.close_put = False
+    print(('close_call', g.close_call, 'close_put', g.close_put))
+    print(('sell_call', g.sell_call, 'sell_put', g.sell_put))
     
     # 获取标的历史数据
     df = GetHisDataAsDF(code, bar_type = BarType.Day)
@@ -149,13 +185,17 @@ def OnBar(context, code, bartype):
     
     
     # 选出当月和下月虚2档沽购合约
-    g.call_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 0, g.trade_month)
-    g.put_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 1, g.trade_month)
-    if g.next_month:
-        g.next_call_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 0, g.next_month)
-        g.next_put_otm_2 = GetAtmOptionContractByPos(code, 'now', -2, 1, g.next_month)
+    RefreshOtm()
+    
+    # 换月日强制刷新
+    if g.last_trade_month != g.trade_month:
+        GetCallOtm()
+        GetPutOtm()
         
-    print(("行权价格", GetStrikePrice(g.call_otm_2)))
+#     print(("行权价格", GetStrikePrice(g.call_otm_2)))
+
+#     print('期权价格')
+#     print(GetOptionClose(g.call_otm_2))
         
     
     # 获取当前操作月份虚2档沽购合约的历史数据
@@ -225,6 +265,8 @@ def OnBar(context, code, bartype):
             d['pos'] = -g.fixed_pos
             g.option_pos['put_otm_2'] = d
             g.sell_put = False
+        else:
+            g.sell_put = False
         
     if g.close_call:
         if call_otm2_pos:
@@ -252,6 +294,8 @@ def OnBar(context, code, bartype):
             d['op_code'] = call_code
             d['pos'] = -g.fixed_pos
             g.option_pos['call_otm_2'] = d
+            g.sell_call = False
+        else:
             g.sell_call = False
             
     if g.close_put:
