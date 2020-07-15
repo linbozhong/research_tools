@@ -10,9 +10,11 @@ from datetime import timedelta
 
 #开始时间，用于初始化一些参数
 def OnStart(context) :
-    g.underlying_symbol = "510050.SHSE"
+    g.underlying = "510050.SHSE"
     g.close_list = None
     context.myacc = None
+    
+    g.iv = []
     
     g.sell_call = False
     g.sell_put = False
@@ -41,7 +43,7 @@ def OnStart(context) :
 def OnMarketQuotationInitialEx(context, exchange, daynight):
     if exchange != 'SHSE':
         return
-    SubscribeBar(g.underlying_symbol, BarType.Day)
+    SubscribeBar(g.underlying, BarType.Day)
 
 
 def GetStrikePrice(option_code):
@@ -62,23 +64,31 @@ def GetOptionIv(option_code):
     direction = GetOptionType(option_code)
     strike = GetStrikePrice(option_code)
     
-    exprie_day = GetExpireDate(option_code)
+    expire_day = GetExpireDate(option_code)
     now = GetCurrentTime().date()
     life_days = expire_day - now
-    t = life_days.date() / 365
+    t = life_days.days / 365
     
     b = CreateCalcObj()
     iv = b.GetImpliedVolatility(direction, 0 , s_price, strike, 0.2, 0.04, t, o_price)
     return iv
 
-def GetIv():
+def GetAtmIv(excute_date):
+    atm_call = GetAtmOptionContractByPos(g.underlying, 'now', 0, 0, excute_date)
+    atm_put = GetAtmOptionContractByPos(g.underlying, 'now', 0, 1, excute_date)
+    call_iv = GetOptionIv(atm_call)
+    put_iv = GetOptionIv(atm_put)
+    return (call_iv + put_iv) / 2
     pass
     
-
 def GetOptionClose(option_code):
     bars = GetHisData2(option_code, BarType.Day, count=100)
     return bars[-1].close
 
+def GetUnderlyingPrice(code):
+    df = GetHisDataAsDF(code, bar_type = BarType.Day)
+    close_list = df.close.values
+    g.close_list = close_list
 
 def MoveContract(context, option_type):
     pass
@@ -87,7 +97,7 @@ def MoveContract(context, option_type):
 def GetCallOtm():
     pass
         
-        
+    
 def GetPutOtm():
     pass
                 
@@ -96,5 +106,17 @@ def RefreshOtm():
     pass
         
 def OnBar(context, code, bartype):
-    pass
+    print((code, bartype))
+    GetUnderlyingPrice(code)
+    
+    now = GetCurrentTime().date()
+    cur_atm_iv = GetAtmIv(1)
+    print(('cur iv', cur_atm_iv))
+    d = dict()
+    d['date'] = now.strftime('%Y%m%d')
+    d['atm_iv'] = cur_atm_iv
+    g.iv.append(d)
+    print(g.iv)
+    
+    
     
