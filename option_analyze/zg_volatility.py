@@ -4,6 +4,7 @@ from PoboAPI import *
 import datetime
 import time
 import numpy as np
+import pandas as pd
 from copy import *
 from datetime import timedelta
 
@@ -34,9 +35,42 @@ def OnStart(context) :
     
     g.option_pos = dict()
     
+    g.holidays = GetHolidayPreDays()
+
+    
     if context.accounts["option_backtest"].Login() :
         context.myacc = context.accounts["option_backtest"]
         print('option backtest login successfully')
+        
+        
+
+# 获取长节假日前一天
+def GetHolidayPreDays():
+    trading_days = GetTradingDates("SHSE", 20150209, 20200716)
+#     print(trading_days)
+
+    df = pd.DataFrame(trading_days, columns=['cur'])
+    df['next'] = df['cur'].shift(-1)
+    df['holidays'] = df['next'] - df['cur']
+#     print(df.head())
+    return df
+
+
+def IsNext2Holiday5():
+    next_trade = GetNextTradingDate("SHSE", GetCurrentTradingDate("SHSE"))
+    
+    df = g.holidays
+    df2 = df[(df['holidays'] >= timedelta(days=5)) & (df['holidays'] < timedelta(days=7))]
+    return next_trade in df2['cur'].values
+
+
+def IsNext3Holiday7():
+    next_trade = GetNextTradingDate("SHSE", GetCurrentTradingDate("SHSE"))
+    after_next_trade = GetNextTradingDate("SHSE", next_trade)
+    
+    df = g.holidays
+    df2 = df[(df['holidays'] >= timedelta(days=7))]
+    return after_next_trade in df2['cur'].values
         
 
 # 每天行情初始化的
@@ -106,17 +140,24 @@ def RefreshOtm():
     pass
         
 def OnBar(context, code, bartype):
-    print((code, bartype))
-    GetUnderlyingPrice(code)
+#     print(GetCurrentTradingDate('SHSE'))
+#     pre_trade = GetNextTradingDate("SHSE", GetCurrentTradingDate("SHSE"))
+#     print(pre_trade)
     
-    now = GetCurrentTime().date()
-    cur_atm_iv = GetAtmIv(1)
-    print(('cur iv', cur_atm_iv))
-    d = dict()
-    d['date'] = now.strftime('%Y%m%d')
-    d['atm_iv'] = cur_atm_iv
-    g.iv.append(d)
-    print(g.iv)
+    print(('is next day 5 holiday pre day:', IsNext2Holiday5()))
+    print(('is after next day 7 holiday pre day:', IsNext3Holiday7()))
+    
+    
+#     print((code, bartype))
+#     GetUnderlyingPrice(code)
+    
+#     now = GetCurrentTime().date()
+#     cur_atm_iv = GetAtmIv(1)
+#     print(('cur iv', cur_atm_iv))
+#     d = dict()
+#     d['date'] = now.strftime('%Y%m%d')
+#     d['atm_iv'] = cur_atm_iv
+#     g.iv.append(d)
     
     
     
