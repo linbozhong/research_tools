@@ -16,6 +16,10 @@ def OnStart(context) :
     context.myacc = None
     
     g.iv = []
+    g.atm_iv = 0
+    
+    g.pos_delta = 0
+    g.target_pos = 0
     
     g.sell_call = False
     g.sell_put = False
@@ -209,10 +213,163 @@ def GetUnderlyingPrice(code):
     g.close_list = close_list
 
     
+def GetPosDict(op_type):
+    if op_type == "call":
+        return GetCallPos()
+    else:
+        return GetPutPos()
+    
+    
+def GetCallPos():
+    call_otm_pos = g.option_pos.get('call_otm', None)
+    if call_otm_pos is None:
+        call_otm_pos = dict()
+        call_otm_pos['op_code'] = ""
+        call_otm_pos['pos'] = 0
+        g.option_pos['call_otm'] = call_otm_pos
+    return g.option_pos['call_otm']
+    
+    
+def GetPutPos():
+    put_otm_pos = g.option_pos.get('put_otm', None)
+    if put_otm_pos is None:
+        put_otm_pos = dict()
+        put_otm_pos['op_code'] = ""
+        put_otm_pos['pos'] = 0
+        g.option_pos['put_otm'] = put_otm_pos
+    return g.option_pos['put_otm']
+    
+    
+def Buy(op_type, code, volume):
+    QuickInsertOrder(context.myacc, code, "buy", "open", PriceType(PbPriceType.Limit, 16), volume)
+
+    pos_dict = GetPosDict(op_type)
+    pos_dict['op_code'] = code
+    pos_dict['pos'] += volume
+        
+
+def Short(op_type, code, volume):
+    QuickInsertOrder(context.myacc, code, "sell", "open", PriceType(PbPriceType.Limit, 16), volume)
+
+    pos_dict = GetPosDict(op_type)
+    pos_dict['op_code'] = code
+    pos_dict['pos'] -= volume
+
+
+def Sell(op_type, code, volume):
+    QuickInsertOrder(context.myacc, code, "sell", "close", PriceType(PbPriceType.Limit, 16), volume)
+
+    pos_dict = GetPosDict(op_type)
+    if code == pos_dict['op_code']:
+        pos_dict['pos'] -= volume
+        if pos_dict['pos'] == 0:
+            pos_dict = None
+
+            
+def Cover(op_type, code, volume):
+    QuickInsertOrder(context.myacc, code, "buy", "close", PriceType(PbPriceType.Limit, 16), volume)
+
+    pos_dict = GetPosDict(op_type)
+    if code == pos_dict['op_code']:
+        pos_dict['pos'] += volume
+        if pos_dict['pos'] == 0:
+            pos_dict = None
+
+            
+def CalcPosDelta():
+    call_otm_pos = g.option_pos.get('call_otm', None)
+    if not call_otm_pos:
+        cur_pos = 0
+    else:
+        cur_pos = call_otm_pos["pos"]
+        
+    g.pos_delta = g.target_pos - cur_pos
+            
+            
+def ModifyPos(op_type, code):
+    if not g.pos_delta:
+        print("合约无需移仓或加减仓")
+    else:
+        if g.pos_delta < 0:
+            # 加仓
+            Short(op_type, code, abs(g.pos_delta))
+        else:
+            # 减仓
+            Cover(op_type, code, g.pos_delta)
+    
+    
+def GetLowPremiumNextCode(code):
+    if GetOptionClose(code) < 0.005 and g.next_call_otm:
+        call_otm = g.next_call_otm
+    else:
+        call_otm = code
+    return call_otm
+    
+    
 def MoveContract(context, option_type):
-    pass
-
-
+    pos_dict = GetPosDict(option_type)
+    
+#     if not call_otm_pos and not put_otm_pos:
+#         SetInitPos()
+#         return
+    
+    # 先前置判断一定要有仓位
+    
+    # 有仓位的前提下
+    op_code = pos_dict['op_code']
+    op_pos = pos_dict['pos']
+    
+    if option_type == "call":
+        cur_otm = g.call_otm
+        next_otm = g.next_call_otm
+    else:
+        cur_otm = g.put_otm
+        next_otm = g.next_put_otm
+    
+    
+    # 不需要水平或垂直移仓，直接执行加减仓
+    if op_code == next_otm:
+        ModifyPos(option_type, op_code)
+    # 不需要垂直移仓
+    elif op_code == cur_otm:
+        # 需要水平移仓
+        if GetOptionClose(op_code) < 0.003 and next_otm:
+            Cover(option_type, op_code, abs(call_pos))
+            Short(option_type, next_otm, abs(g.target_pos))
+        # 不需要水平移仓
+        else:
+            ModifyPos(option_type, op_code)
+    
+    # 需要垂直移仓
+    else:
+        Cover(option_type, op_code, abs(call_pos))
+        # 垂直移仓的权利金太低，需要同步水平移仓
+        if GetOptionClose(cur_otm) < 0.005 and next_otm:
+            Short(option_type, next_otm, abs(g.target_pos))
+        else:
+            Short(option_type, cur_otm, abs(g.target_pos))
+       
+                
+def SetInitPos():
+    volume = GetPosByIv(g.atm_iv)
+    
+    if GetOptionClose(g.call_otm) < 0.005 and g.next_call_otm:
+        print("当月认购权利金太低，换开下月")
+        call_code = g.next_call_otm
+    else:
+        call_code = g.call_otm
+        
+    if GetOptionClose(g.put_otm) < 0.005 and g.next_put_otm:
+        print("当月认沽权利金太低，换开下月")
+        put_code = g.next_put_otm
+    else:
+        put_code = g.put_otm
+        
+    Short('call', call_code, abs(volume))
+    Short('put', put_code, abs(volume))
+                
+                
+                
 def call_set_target_pos(target_pos):
     call_otm_pos = g.option_pos.get('call_otm', None)
     if not call_otm_pos:
@@ -233,24 +390,24 @@ def call_set_target_pos(target_pos):
     QuickInsertOrder(context.myacc, call_code, 'sell', offset, PriceType(PbPriceType.Limit, 16), volume)
 
 
-def put_set_target_pos(target_pos):
-    put_otm_pos = g.option_pos.get('put_otm', None)
-    if not put_otm_pos:
-        cur_pos = 0
-    else:
-        cur_pos = put_otm_pos["pos"]
+# def put_set_target_pos(target_pos):
+#     put_otm_pos = g.option_pos.get('put_otm', None)
+#     if not put_otm_pos:
+#         cur_pos = 0
+#     else:
+#         cur_pos = put_otm_pos["pos"]
         
-    volume = target_pos - cur_pos
-    if not volume:
-        return
-    offset = "open" if volume > 0 else "close"
+#     volume = target_pos - cur_pos
+#     if not volume:
+#         return
+#     offset = "open" if volume > 0 else "close"
     
-    if GetOptionClose(g.put_otm) < 0.006 and g.next_put_otm:
-        print("当月认沽权利金太低，换开下月")
-        call_code = g.next_put_otm
-    else:
-        call_code = g.put_otm
-    QuickInsertOrder(context.myacc, call_code, 'sell', offset, PriceType(PbPriceType.Limit, 16), volume)
+#     if GetOptionClose(g.put_otm) < 0.006 and g.next_put_otm:
+#         print("当月认沽权利金太低，换开下月")
+#         call_code = g.next_put_otm
+#     else:
+#         call_code = g.put_otm
+#     QuickInsertOrder(context.myacc, call_code, 'sell', offset, PriceType(PbPriceType.Limit, 16), volume)
     
     
         
@@ -269,7 +426,7 @@ def OnBar(context, code, bartype):
     CheckMonthMove(code)
     
     # 计算平值沽购隐波均值
-    cur_atm_iv = GetAtmIv()
+    g.atm_iv = GetAtmIv()
     
     
     # 计算目标仓位并根据现有持仓调整仓位
