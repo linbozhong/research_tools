@@ -46,6 +46,14 @@ def OnStart(context) :
         print('option backtest login successfully')
         
         
+def SetOpFee(op_code):
+    fee = PBObj()
+    fee.CloseUnit = 1.7
+    g.myacc.SetFee(op_code, fee)
+    fee_value = g.myacc.GetFee(op_code)
+    print(('fee value:', fee_value.CloseUnit))
+        
+        
 def GetPosByIv(iv):
     pos = 0
     if 10 <= iv < 15:
@@ -68,14 +76,23 @@ def GetCallOtm(level=-2):
     # 此处有bug，如果没有下月month，就会变成乱取next_call_otm
     if g.next_month:
         g.next_call_otm = GetAtmOptionContractByPos(g.underlying, 'now', level, 0, g.next_month)
-    print(('month', g.trade_month, g.next_month))
+    else:
+        g.next_call_otm = g.call_otm
+        
+    SetOpFee(g.call_otm)
+    SetOpFee(g.next_call_otm)
     print(('get_call_otm', g.call_otm, GetStrikePrice(g.call_otm), g.next_call_otm, GetStrikePrice(g.next_call_otm)))
         
         
 def GetPutOtm(level=-2):
     g.put_otm = GetAtmOptionContractByPos(g.underlying, 'now', level, 1, g.trade_month)
     if g.next_month:
-        g.next_put_otm = GetAtmOptionContractByPos(g.underlying, 'now', level, 1, g.next_month)    
+        g.next_put_otm = GetAtmOptionContractByPos(g.underlying, 'now', level, 1, g.next_month)
+    else:
+        g.next_put_otm = g.put_otm
+        
+    SetOpFee(g.put_otm)
+    SetOpFee(g.next_put_otm)
     print(('get_put_otm', g.put_otm, GetStrikePrice(g.put_otm), g.next_put_otm, GetStrikePrice(g.next_put_otm)))
 
     
@@ -90,7 +107,7 @@ def CheckMonthMove(code):
     else:
         g.trade_month = cur_mon
         g.next_month = next_mon
-#     print(('trade month:', g.trade_month, 'next month:', g.next_month))
+    print(('trade month:', g.trade_month, 'next month:', g.next_month))
     
     
 def RefreshOtm():
@@ -312,14 +329,6 @@ def ModifyPos(op_type, code):
             Cover(op_type, code, g.pos_delta)
     
     
-# def GetLowPremiumNextCode(code):
-#     if GetOptionClose(code) < 0.005 and g.next_call_otm:
-#         call_otm = g.next_call_otm
-#     else:
-#         call_otm = code
-#     return call_otm
-    
-    
 def MoveContract(option_type):
     # 先前置判断一定要有仓位
     if IsEmptyPos():
@@ -349,7 +358,7 @@ def MoveContract(option_type):
     # 不需要垂直移仓
     elif op_code == cur_otm:
         # 需要水平移仓
-        if GetOptionClose(op_code) < 0.003 and next_otm:
+        if GetOptionClose(op_code) < 0.003 and next_otm != cur_otm:
             Cover(option_type, op_code, abs(op_pos))
             Short(option_type, next_otm, abs(g.target_pos))
         # 不需要水平移仓
@@ -360,20 +369,20 @@ def MoveContract(option_type):
     else:
         Cover(option_type, op_code, abs(op_pos))
         # 垂直移仓的权利金太低，需要同步水平移仓
-        if GetOptionClose(cur_otm) < 0.005 and next_otm:
+        if GetOptionClose(cur_otm) < 0.005 and next_otm != cur_otm:
             Short(option_type, next_otm, abs(g.target_pos))
         else:
             Short(option_type, cur_otm, abs(g.target_pos))
        
                 
 def SetInitPos():
-    if GetOptionClose(g.call_otm) < 0.005 and g.next_call_otm:
+    if GetOptionClose(g.call_otm) < 0.005 and g.next_call_otm != g.call_otm:
         print("当月认购权利金太低，换开下月")
         call_code = g.next_call_otm
     else:
         call_code = g.call_otm
         
-    if GetOptionClose(g.put_otm) < 0.005 and g.next_put_otm:
+    if GetOptionClose(g.put_otm) < 0.005 and g.next_put_otm != g.put_otm:
         print("当月认沽权利金太低，换开下月")
         put_code = g.next_put_otm
     else:
@@ -409,13 +418,13 @@ def OnBar(context, code, bartype):
     print(('iv:', g.atm_iv, 'target:', g.target_pos, 'pos_delta:', g.pos_delta))
     
     
-    # 没有初始仓位就先建仓
-#     if IsEmptyPos():
-#         SetInitPos()
+#     没有初始仓位就先建仓
+    if IsEmptyPos():
+        SetInitPos()
         
-    # 移仓、加减仓
-#     MoveContract('call')
-#     MoveContract('put')
+#     移仓、加减仓
+    MoveContract('call')
+    MoveContract('put')
     
     # 计算目标仓位并根据现有持仓调整仓位
     
