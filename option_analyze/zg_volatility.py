@@ -51,23 +51,84 @@ def SetOpFee(op_code):
     fee.CloseUnit = 1.7
     g.myacc.SetFee(op_code, fee)
     fee_value = g.myacc.GetFee(op_code)
-    print(('fee value:', fee_value.CloseUnit))
+#     print(('fee value:', fee_value.CloseUnit))
         
+
+def GetPosByIvSignal():
+    if len(g.iv) == 1:
+        pos = GetPosByIv(g.iv[0])
+    else:
+        last_iv = g.iv[-2]
+        now_iv = g.iv[-1]
+        if now_iv > last_iv:
+            pos = GetPosWhenIvUp(now_iv)
+        elif now_iv < last_iv:
+            pos = GetPosWhenIVDown(now_iv)
+        else:
+            return
+    return pos
+
+
+def GetPosWhenIvUp(iv):
+    if iv >= 80:
+        pos = 105
+    elif iv >= 60:
+        pos = 90
+    elif iv >= 45:
+        pos = 75
+    elif iv >= 35:
+        pos = 60
+    elif iv >= 25:
+        pos = 45
+    elif iv >= 20:
+        pos = 30
+    elif iv >= 15:
+        pos = 15
+    else:
+        pos = 0
+    return -pos
         
+
+def GetPosWhenIvDown(iv):
+    if iv < 10:
+        pos = 0
+    elif iv < 15:
+        pos = 15
+    elif iv < 20:
+        pos = 30
+    elif iv < 25:
+        pos = 45
+    elif iv < 35:
+        pos = 60
+    elif iv < 45:
+        pos = 75
+    elif iv < 60:
+        pos = 90
+    elif iv < 80:
+        pos = 105
+    else:
+        pos = 105
+    return -pos    
+    
+    
 def GetPosByIv(iv):
     pos = 0
     if 10 <= iv < 15:
         pos = 15
-    elif 15 <= iv < 25:
+    elif 15 <= iv < 20:
         pos = 30
-    elif 25 <= iv < 35:
+    elif 20 <= iv < 25:
         pos = 45
-    elif 35 <= iv < 45:
+    elif 25 <= iv < 35:
         pos = 60
-    elif 45 <= iv < 55:
+    elif 35 <= iv < 45:
         pos = 75
-    elif 55 <= iv:
+    elif 45 <= iv < 60:
         pos = 90
+    elif 60 <= iv < 80:
+        pos = 105 
+    elif 80 <= iv:
+        pos = 105
     return -pos
 
 
@@ -124,7 +185,7 @@ def RefreshOtm():
         call_strike = GetStrikePrice(call_op_code)
         close = g.close_list[-1]
         strike_space = call_strike / close - 1
-        if close >= call_strike or strike_space <= 0.02 or strike_space >= 0.05:
+        if close >= call_strike or strike_space <= 0.02 or strike_space >= 0.06:
             print('购空间不足或过大')
             print((call_strike, close, strike_space))
             GetCallOtm()
@@ -137,7 +198,7 @@ def RefreshOtm():
         put_strike = GetStrikePrice(put_op_code)
         close = g.close_list[-1]
         strike_space = put_strike / close - 1
-        if close <= put_strike or abs(strike_space) <= 0.02 or abs(strike_space) >= 0.05:
+        if close <= put_strike or abs(strike_space) <= 0.02 or abs(strike_space) >= 0.06:
             print('沽空间不足或过大')
             print((put_strike, close, strike_space))
             GetPutOtm()
@@ -413,6 +474,7 @@ def OnBar(context, code, bartype):
     
     # 计算平值沽购隐波均值、目标仓位、仓位差
     g.atm_iv = GetAtmIv()
+    g.iv.append(g.atm_iv)
     g.target_pos = GetPosByIv(g.atm_iv * 100)
     g.pos_delta = CalcPosDelta()
     print(('iv:', g.atm_iv, 'target:', g.target_pos, 'pos_delta:', g.pos_delta))
