@@ -106,6 +106,7 @@ ENV/
 # data file
 analyze_script/*.csv
 analyze_script/commission_fol.json
+analyze_script/excluded_trade.json
 
 # databse setting json
 # backtest/*.csv
