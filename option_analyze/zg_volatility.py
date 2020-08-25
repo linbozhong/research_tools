@@ -56,14 +56,20 @@ def SetOpFee(op_code):
 
 def GetPosByIvSignal():
     if len(g.iv) == 1:
-        pos = GetPosByIv(g.iv[0])
+        pos = GetPosByIv(g.iv[0] * 100)
     else:
         last_iv = g.iv[-2]
         now_iv = g.iv[-1]
         if now_iv > last_iv:
-            pos = GetPosWhenIvUp(now_iv)
+            pos = GetPosWhenIvUp(now_iv * 100)
+            # 升波如果碰到降仓则不改仓位
+            if abs(pos) <= abs(g.target_pos):
+                pos = g.target_pos
         elif now_iv < last_iv:
-            pos = GetPosWhenIVDown(now_iv)
+            pos = GetPosWhenIvDown(now_iv * 100)
+            # 降波如果碰到加仓则不改仓位
+            if abs(pos) >= abs(g.target_pos):
+                pos = g.target_pos
         else:
             return
     return pos
@@ -140,8 +146,8 @@ def GetCallOtm(level=-2):
     else:
         g.next_call_otm = g.call_otm
         
-    SetOpFee(g.call_otm)
-    SetOpFee(g.next_call_otm)
+#     SetOpFee(g.call_otm)
+#     SetOpFee(g.next_call_otm)
     print(('get_call_otm', g.call_otm, GetStrikePrice(g.call_otm), g.next_call_otm, GetStrikePrice(g.next_call_otm)))
         
         
@@ -152,8 +158,8 @@ def GetPutOtm(level=-2):
     else:
         g.next_put_otm = g.put_otm
         
-    SetOpFee(g.put_otm)
-    SetOpFee(g.next_put_otm)
+#     SetOpFee(g.put_otm)
+#     SetOpFee(g.next_put_otm)
     print(('get_put_otm', g.put_otm, GetStrikePrice(g.put_otm), g.next_put_otm, GetStrikePrice(g.next_put_otm)))
 
     
@@ -418,18 +424,17 @@ def MoveContract(option_type):
         ModifyPos(option_type, op_code)
     # 不需要垂直移仓
     elif op_code == cur_otm:
-        # 需要水平移仓
+        # 需要水平移仓（当月权利金过低，且存在下月合约可以移）
         if GetOptionClose(op_code) < 0.003 and next_otm != cur_otm:
             Cover(option_type, op_code, abs(op_pos))
             Short(option_type, next_otm, abs(g.target_pos))
-        # 不需要水平移仓
+        # 无法水平移仓
         else:
             ModifyPos(option_type, op_code)
-    
     # 需要垂直移仓
     else:
         Cover(option_type, op_code, abs(op_pos))
-        # 垂直移仓的权利金太低，需要同步水平移仓
+        # 垂直移仓的权利金太低，且存在下月合约可以移，需要同步水平移仓
         if GetOptionClose(cur_otm) < 0.005 and next_otm != cur_otm:
             Short(option_type, next_otm, abs(g.target_pos))
         else:
@@ -475,7 +480,7 @@ def OnBar(context, code, bartype):
     # 计算平值沽购隐波均值、目标仓位、仓位差
     g.atm_iv = GetAtmIv()
     g.iv.append(g.atm_iv)
-    g.target_pos = GetPosByIv(g.atm_iv * 100)
+    g.target_pos = GetPosByIvSignal()
     g.pos_delta = CalcPosDelta()
     print(('iv:', g.atm_iv, 'target:', g.target_pos, 'pos_delta:', g.pos_delta))
     
