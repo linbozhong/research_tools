@@ -47,22 +47,38 @@ def update_qvix(underlying: str = '510050'):
     except:
         print(f'error occur when get {underlying} qvix.')
     else:
-        name_dict = {
-            '1': 'datetime',
-            '1 ': 'datetime',
-            '2': 'open',
-            '3': 'high',
-            '4': 'low',
-            '5': 'close'
-        }
+        if underlying == '510300':
+            name_dict = {
+                '1': 'datetime',
+                '2': 'open',
+                '3': 'high',
+                '4': 'low',
+                '5': 'close'
+            }
+        elif underlying == '510050':
+            name_dict = {
+                '0': 'datetime',
+                '1': 'open',
+                '2': 'high',
+                '3': 'low',
+                '4': 'close'
+            }
+
         df = pd.DataFrame(csv_data)
         df.rename(columns=name_dict, inplace=True)
         df = df[df['open'] != ''].copy()
+        df = df[['datetime', 'open', 'high', 'low', 'close']].copy()
+        # print(df.tail())
 
         df[['open', 'high', 'low', 'close']] = df[[
             'open', 'high', 'low', 'close']].astype('float')
-        df['datetime'] = df['datetime'].map(
-            lambda t_stamp_str: dt_to_str(datetime.fromtimestamp(float(t_stamp_str) / 1000)))
+
+        if underlying == '510300':
+            df['datetime'] = df['datetime'].map(
+                lambda t_stamp_str: dt_to_str(datetime.fromtimestamp(float(t_stamp_str) / 1000)))
+        elif underlying == '510050':
+            df['datetime'] = df['datetime'].map(lambda date_str: datetime.strptime(date_str, '%Y/%m/%d'))
+            df['datetime'] = df['datetime'].map(lambda date_dt: dt_to_str(date_dt))
 
         df.set_index('datetime', inplace=True)
         df.to_csv(get_qvix_file(underlying))
