@@ -39,6 +39,7 @@ def OnStart(context) :
     g.option_pos = dict()
     
     g.holidays = GetHolidayPreDays()
+    g.holiday_clear = False
 
     
     if context.accounts["option_backtest"].Login() :
@@ -60,6 +61,7 @@ def GetPosByIvSignal():
     else:
         last_iv = g.iv[-2]
         now_iv = g.iv[-1]
+        print(('now iv:', now_iv, 'last iv:', last_iv))
         if now_iv > last_iv:
             pos = GetPosWhenIvUp(now_iv * 100)
             # 升波如果碰到降仓则不改仓位
@@ -71,7 +73,7 @@ def GetPosByIvSignal():
             if abs(pos) >= abs(g.target_pos):
                 pos = g.target_pos
         else:
-            return
+            return g.target_pos
     return pos
 
 
@@ -162,7 +164,6 @@ def GetPutOtm(level=-2):
 #     SetOpFee(g.next_put_otm)
     print(('get_put_otm', g.put_otm, GetStrikePrice(g.put_otm), g.next_put_otm, GetStrikePrice(g.next_put_otm)))
 
-    
 
 def CheckMonthMove(code):
     now = GetCurrentTime().date()
@@ -209,10 +210,28 @@ def RefreshOtm():
             print((put_strike, close, strike_space))
             GetPutOtm()
     
-    # 有持仓且虚实度不变，但是需要换到下月合约，所以换月日必须强制刷新otm合约，以便在MoveContract函数调仓
+    # 有持仓且虚实度不变，但是到换月日了，需要换到下月合约，必须强制刷新otm合约，以便在MoveContract函数调仓
     if g.last_trade_month != g.trade_month:
-        GetCallOtm()
-        GetPutOtm()
+        # 如果已经是下月则不变
+        print(('换月日日期', g.last_trade_month, g.trade_month,))
+        call_code = GetCallPos()['op_code']
+#         print(('购合约名称：', call_code))
+        if call_code:
+            call_trade_month = GetExpireDate(call_code)
+            print(( 'call合约：', call_code, call_trade_month))
+            if g.trade_month == call_trade_month:
+                print('购换月日虚实不变且已经是下月合约，无需更新otm')
+            else:
+                GetCallOtm()
+        
+        put_code = GetPutPos()['op_code']
+        if put_code:
+            put_trade_month = GetExpireDate(put_code)
+            print(('put合约：', put_code, put_trade_month))
+            if g.trade_month == put_trade_month:
+                print('沽换月日虚实不变且已经是下月合约，无需更新otm')
+            else:
+                GetPutOtm()
     
 
 # 获取长节假日前一天
@@ -226,6 +245,19 @@ def GetHolidayPreDays():
 #     print(df.head())
     return df
 
+
+# 判断是否大于5小于7天节假日后的首个交易日
+def IsAfterHoliday5():
+    df = g.holidays
+    df2 = df[(df['holidays'] >= timedelta(days=5)) & (df['holidays'] < timedelta(days=7))]
+    return GetCurrentTradingDate("SHSE") in df2['next'].values
+
+# 判断是否大于7天节假日后的首个交易日
+def IsAfterHoliday7():
+    df = g.holidays
+    df2 = df[(df['holidays'] >= timedelta(days=7))]
+    return GetCurrentTradingDate("SHSE") in df2['next'].values
+    
 
 # 判断是否大于等于5天节假日的平仓日
 def IsNext2Holiday5():
@@ -303,6 +335,7 @@ def GetUnderlyingPrice(code):
     df = GetHisDataAsDF(code, bar_type = BarType.Day)
     close_list = df.close.values
     g.close_list = close_list
+    print(('today close price:', close_list[-1]))
 
     
 def IsEmptyPos():
@@ -394,7 +427,19 @@ def ModifyPos(op_type, code):
         else:
             # 减仓
             Cover(op_type, code, g.pos_delta)
-    
+
+            
+def ClearBeforeHoliday():
+    if IsEmptyPos():
+        print("节假日前已空仓，无需再次平仓")
+        return
+    for op_type in ['call', 'put']:
+        pos_dict = GetPosDict(op_type)
+        op_code = pos_dict['op_code']
+        op_pos = pos_dict['pos']
+
+        Cover(op_type, op_code, abs(op_pos))
+
     
 def MoveContract(option_type):
     # 先前置判断一定要有仓位
@@ -443,13 +488,13 @@ def MoveContract(option_type):
                 
 def SetInitPos():
     if GetOptionClose(g.call_otm) < 0.005 and g.next_call_otm != g.call_otm:
-        print("当月认购权利金太低，换开下月")
+        print(("当月认购权利金太低，换开下月:", GetOptionClose(g.call_otm)))
         call_code = g.next_call_otm
     else:
         call_code = g.call_otm
         
     if GetOptionClose(g.put_otm) < 0.005 and g.next_put_otm != g.put_otm:
-        print("当月认沽权利金太低，换开下月")
+        print(("当月认沽权利金太低，换开下月:", GetOptionClose(g.put_otm)))
         put_code = g.next_put_otm
     else:
         put_code = g.put_otm
@@ -465,8 +510,25 @@ def OnBar(context, code, bartype):
 #     pre_trade = GetNextTradingDate("SHSE", GetCurrentTradingDate("SHSE"))
 #     print(pre_trade)
     
-#     print(('is next day 5 holiday pre day:', IsNext2Holiday5()))
-#     print(('is after next day 7 holiday pre day:', IsNext3Holiday7()))
+    print(('is next day 5 holiday pre day:', IsNext2Holiday5()))
+    print(('is after next day 7 holiday pre day:', IsNext3Holiday7()))
+    print(('is first day after 5 holiday:', IsAfterHoliday5()))
+    print(('is first day after 7 holiday:', IsAfterHoliday7()))
+
+    # 节假日结束后，清除假日清仓标记，允许建仓
+    if IsAfterHoliday5() or IsAfterHoliday7():
+        g.holiday_clear = False
+    
+    # 如果是长节假日前的平仓日，无需再做任何调仓判断，直接平掉所有仓位，并跳过其他调仓逻辑
+    if IsNext2Holiday5() or IsNext3Holiday7():
+        ClearBeforeHoliday()
+        g.holiday_clear = True
+        print("快要放假了，清仓休息了！")
+        return
+    
+    if g.holiday_clear:
+        print("已经启动节假日清仓，假日结束前不允许建仓")
+        return
 
     # 更新标的价格序列
     GetUnderlyingPrice(code)
@@ -481,6 +543,7 @@ def OnBar(context, code, bartype):
     g.atm_iv = GetAtmIv()
     g.iv.append(g.atm_iv)
     g.target_pos = GetPosByIvSignal()
+    print(('before calc pos delta, target_pos:', g.target_pos))
     g.pos_delta = CalcPosDelta()
     print(('iv:', g.atm_iv, 'target:', g.target_pos, 'pos_delta:', g.pos_delta))
     
