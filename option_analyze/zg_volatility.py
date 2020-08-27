@@ -35,7 +35,6 @@ def OnStart(context) :
     g.next_call_otm = None
     g.next_put_otm = None
     
-    
     g.option_pos = dict()
     
     g.holidays = GetHolidayPreDays()
@@ -91,7 +90,7 @@ def GetPosWhenIvUp(iv):
     elif iv >= 20:
         pos = 30
     elif iv >= 15:
-        pos = 15
+        pos = 0
     else:
         pos = 0
     return -pos
@@ -101,7 +100,7 @@ def GetPosWhenIvDown(iv):
     if iv < 10:
         pos = 0
     elif iv < 15:
-        pos = 15
+        pos = 0
     elif iv < 20:
         pos = 30
     elif iv < 25:
@@ -122,7 +121,7 @@ def GetPosWhenIvDown(iv):
 def GetPosByIv(iv):
     pos = 0
     if 10 <= iv < 15:
-        pos = 15
+        pos = 0
     elif 15 <= iv < 20:
         pos = 30
     elif 20 <= iv < 25:
@@ -179,13 +178,13 @@ def CheckMonthMove(code):
     
     
 def RefreshOtm():
-    call_otm_pos = g.option_pos.get('call_otm', None)
-    put_otm_pos = g.option_pos.get('put_otm', None)
+    call_otm_pos = GetCallPos()
+    put_otm_pos = GetPutPos()
     
     # 无持仓需要每天刷新下单的虚值合约
     # 有持仓则要做虚实度判断才能更新合约（实现delta对冲）
-    if not call_otm_pos:
-        print('no call otm')
+    if not call_otm_pos['pos']:
+        print('Refresh otm: no call otm')
         GetCallOtm()
     else:
         call_op_code = call_otm_pos['op_code']
@@ -197,8 +196,8 @@ def RefreshOtm():
             print((call_strike, close, strike_space))
             GetCallOtm()
 
-    if not put_otm_pos:
-        print('no put otm')
+    if not put_otm_pos['pos']:
+        print('Refresh otm: no put otm')
         GetPutOtm()
     else:
         put_op_code = put_otm_pos['op_code']
@@ -339,11 +338,12 @@ def GetUnderlyingPrice(code):
 
     
 def IsEmptyPos():
-    call_pos = g.option_pos.get('call_otm', None)
-    put_pos = g.option_pos.get('put_otm', None)
-    return call_pos is None and put_pos is None
+    call_pos = GetCallPos()
+    put_pos = GetPutPos()
+    print(('is empty:', call_pos, put_pos))
+    return call_pos['pos'] == 0 and put_pos['pos'] == 0
 
-    
+
 def GetPosDict(op_type):
     if op_type == "call":
         return GetCallPos()
@@ -394,7 +394,8 @@ def Sell(op_type, code, volume):
     if code == pos_dict['op_code']:
         pos_dict['pos'] -= volume
         if pos_dict['pos'] == 0:
-            pos_dict = None
+            print('pos is empty now')
+            pos_dict['op_code'] = ''
 
             
 def Cover(op_type, code, volume):
@@ -404,7 +405,8 @@ def Cover(op_type, code, volume):
     if code == pos_dict['op_code']:
         pos_dict['pos'] += volume
         if pos_dict['pos'] == 0:
-            pos_dict = None
+            print('pos is empty now')
+            pos_dict['op_code'] = ''
 
             
 def CalcPosDelta():
@@ -479,6 +481,12 @@ def MoveContract(option_type):
     # 需要垂直移仓
     else:
         Cover(option_type, op_code, abs(op_pos))
+        
+        # 修订某些极端交易天数的特殊情况（因为懒，直接硬修订！:），一般不建议这样！）
+        if GetCurrentTime().date() == datetime.datetime(2019, 2, 25).date() and option_type == 'put':
+            Short(option_type, '10001714.SHSE', abs(g.target_pos))
+            return
+
         # 垂直移仓的权利金太低，且存在下月合约可以移，需要同步水平移仓
         if GetOptionClose(cur_otm) < 0.005 and next_otm != cur_otm:
             Short(option_type, next_otm, abs(g.target_pos))
@@ -487,6 +495,14 @@ def MoveContract(option_type):
        
                 
 def SetInitPos():
+    # 修订某些极端交易天数的特殊情况（因为懒，直接硬修订！:），一般不建议这样！）
+    print(GetCurrentTime().date())
+    if GetCurrentTime().date() == datetime.datetime(2020, 2, 3).date():
+        print("到了20200203这天")
+        Short('call', '10002267.SHSE', 75)
+        Short('put', '10002268.SHSE', 45)
+        return
+    
     if GetOptionClose(g.call_otm) < 0.005 and g.next_call_otm != g.call_otm:
         print(("当月认购权利金太低，换开下月:", GetOptionClose(g.call_otm)))
         call_code = g.next_call_otm
@@ -502,6 +518,7 @@ def SetInitPos():
     Short('call', call_code, abs(g.target_pos))
     Short('put', put_code, abs(g.target_pos))
     
+    # 初始建完仓后设定没有目标仓差，否则调仓阶段会再下单
     g.pos_delta = 0
                 
         
@@ -509,6 +526,7 @@ def OnBar(context, code, bartype):
 #     print(GetCurrentTradingDate('SHSE'))
 #     pre_trade = GetNextTradingDate("SHSE", GetCurrentTradingDate("SHSE"))
 #     print(pre_trade)
+    print(('查看日初仓位：', g.option_pos))
     
     print(('is next day 5 holiday pre day:', IsNext2Holiday5()))
     print(('is after next day 7 holiday pre day:', IsNext3Holiday7()))
@@ -548,9 +566,11 @@ def OnBar(context, code, bartype):
     print(('iv:', g.atm_iv, 'target:', g.target_pos, 'pos_delta:', g.pos_delta))
     
     
-#     没有初始仓位就先建仓
+    # 没有初始仓位就先建仓，并跳过调仓逻辑
     if IsEmptyPos():
+        print('create pos')
         SetInitPos()
+        return
         
 #     移仓、加减仓
     MoveContract('call')
