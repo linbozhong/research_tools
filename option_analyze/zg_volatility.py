@@ -39,11 +39,15 @@ def OnStart(context) :
     
     g.holidays = GetHolidayPreDays()
     g.holiday_clear = False
-
+    
+    g.recheck_call_otm = False
+    g.recheck_put_otm = False
+    g.recheck_otm = False
+    
     
     if context.accounts["option_backtest"].Login() :
         g.myacc = context.accounts["option_backtest"]
-        print('option backtest login successfully')
+        print('期权回测账户登录成功！')
         
         
 def SetOpFee(op_code):
@@ -52,6 +56,30 @@ def SetOpFee(op_code):
     g.myacc.SetFee(op_code, fee)
     fee_value = g.myacc.GetFee(op_code)
 #     print(('fee value:', fee_value.CloseUnit))
+
+
+def GetStrikeInterval(close_price):
+    interval = None
+    if close_price <= 3:
+        interval = 0.05
+    elif 3 < close_price <= 5:
+        interval = 0.1
+    elif 5 < close_price <= 10:
+        interval = 0.25
+    elif 10 < close_price <= 20:
+        interval = 0.5
+    elif 20 < close_price <= 50:
+        interval = 1
+    elif 50 < close_price <= 100:
+        interval = 2.5
+    elif close_price > 100:
+        interval = 5
+    else:
+        print("输入参数不正确")
+        pass
+    
+    return interval
+        
         
 
 def GetPosByIvSignal():
@@ -147,8 +175,6 @@ def GetCallOtm(level=-2):
     else:
         g.next_call_otm = g.call_otm
         
-#     SetOpFee(g.call_otm)
-#     SetOpFee(g.next_call_otm)
     print(('get_call_otm', g.call_otm, GetStrikePrice(g.call_otm), g.next_call_otm, GetStrikePrice(g.next_call_otm)))
         
         
@@ -159,9 +185,62 @@ def GetPutOtm(level=-2):
     else:
         g.next_put_otm = g.put_otm
         
-#     SetOpFee(g.put_otm)
-#     SetOpFee(g.next_put_otm)
     print(('get_put_otm', g.put_otm, GetStrikePrice(g.put_otm), g.next_put_otm, GetStrikePrice(g.next_put_otm)))
+
+    
+def GetCallOtmByPrice(price):
+    g.call_otm = GetAtmOptionContract(g.underlying, g.trade_month, price, 0)
+    if g.next_month:
+        g.next_call_otm = GetAtmOptionContract(g.underlying, g.next_month, price, 0)
+    else:
+        g.next_call_otm = g.call_otm
+        
+    print(('get_call_otm_by_price', g.call_otm, GetStrikePrice(g.call_otm), g.next_call_otm, GetStrikePrice(g.next_call_otm)))    
+
+    
+def GetPutOtmByPrice(price):
+    g.put_otm = GetAtmOptionContract(g.underlying, g.trade_month, price, 1)
+    if g.next_month:
+        g.next_put_otm = GetAtmOptionContract(g.underlying, g.trade_month, price, 1)
+    else:
+        g.next_put_otm = g.put_otm
+        
+    print(('get_put_otm_by_price', g.put_otm, GetStrikePrice(g.put_otm), g.next_put_otm, GetStrikePrice(g.next_put_otm)))
+    
+    
+def RecheckOtm():
+    # 价格波动导致没有对应的虚值期权可用的时候，调整沽购虚值合约
+    close = g.close_list[-1]
+    interval = GetStrikeInterval(close)
+    cur_call_strike = GetStrikePrice(g.call_otm)
+    cur_put_strike = GetStrikePrice(g.put_otm)
+    call_space = cur_call_strike - close
+    put_space = close - cur_put_strike
+
+#     # 直接切换为平值期权
+#     call_exceed = (cur_call_strike - close < interval)
+#     put_exceed = (close - cur_put_strike < interval)
+    
+#     if call_exceed or put_exceed:
+#         GetCallOtm(0)
+#         GetPutOtm(0)
+        
+
+    # 沽购调整为相匹配的档位，只有空间不足的情况才允许调整，反向合约空间过大的情况不允许调整
+    if close >= cur_call_strike or close <= cur_put_strike:
+        if g.recheck_call_otm:
+            GetCallOtm(0)
+        if g.recheck_put_otm:
+            GetPutOtm(0)
+    else:
+        if call_space < interval and g.recheck_put_otm:
+            GetPutOtmByPrice(close - call_space)
+        elif put_space < interval and g.recheck_call_otm:
+            GetCallOtmByPrice(close + put_space)
+            
+    # 恢复重新检查状态
+    g.recheck_call_otm = False
+    g.recheck_put_otm = False
 
 
 def CheckMonthMove(code):
@@ -184,32 +263,44 @@ def RefreshOtm():
     # 无持仓需要每天刷新下单的虚值合约
     # 有持仓则要做虚实度判断才能更新合约（实现delta对冲）
     if not call_otm_pos['pos']:
-        print('Refresh otm: no call otm')
+        print('刷新OTM：没有认购合约持仓！')
         GetCallOtm()
     else:
         call_op_code = call_otm_pos['op_code']
         call_strike = GetStrikePrice(call_op_code)
         close = g.close_list[-1]
         strike_space = call_strike / close - 1
-        if close >= call_strike or strike_space <= 0.02 or strike_space >= 0.06:
-            print('购空间不足或过大')
+        if close >= call_strike or strike_space <= 0.02:
+            print('认购防御空间不足')
+            print((call_strike, close, strike_space))
+            GetCallOtm()
+            g.recheck_put_otm = True
+        elif strike_space >= 0.06:
+            print('认购防御空间过大')
             print((call_strike, close, strike_space))
             GetCallOtm()
 
     if not put_otm_pos['pos']:
-        print('Refresh otm: no put otm')
+        print('刷新OTM：没有认沽合约持仓！')
         GetPutOtm()
     else:
         put_op_code = put_otm_pos['op_code']
         put_strike = GetStrikePrice(put_op_code)
         close = g.close_list[-1]
         strike_space = put_strike / close - 1
-        if close <= put_strike or abs(strike_space) <= 0.02 or abs(strike_space) >= 0.06:
-            print('沽空间不足或过大')
+        if close <= put_strike or abs(strike_space) <= 0.02:
+            print('认沽防御空间不足')
+            print((put_strike, close, strike_space))
+            GetPutOtm()
+            g.recheck_call_otm = True
+        elif abs(strike_space) >= 0.06:
+            print('认沽防御空间过大')
             print((put_strike, close, strike_space))
             GetPutOtm()
     
-    # 有持仓且虚实度不变，但是到换月日了，需要换到下月合约，必须强制刷新otm合约，以便在MoveContract函数调仓
+    
+    # 虚实度不变的时候，上面的GetPutOtm和GetCallOtm不会被运行
+    # 因此如果上面没运行但是又到换月日了，需要换到下月合约，必须强制刷新otm合约，以便在MoveContract函数调仓
     if g.last_trade_month != g.trade_month:
         # 如果已经是下月则不变
         print(('换月日日期', g.last_trade_month, g.trade_month,))
@@ -217,20 +308,24 @@ def RefreshOtm():
 #         print(('购合约名称：', call_code))
         if call_code:
             call_trade_month = GetExpireDate(call_code)
-            print(( 'call合约：', call_code, call_trade_month))
+            print(( '认购合约：', call_code, call_trade_month))
             if g.trade_month == call_trade_month:
-                print('购换月日虚实不变且已经是下月合约，无需更新otm')
+                print('认购换月日虚实不变且已经是下月合约，无需更新otm')
             else:
                 GetCallOtm()
         
         put_code = GetPutPos()['op_code']
         if put_code:
             put_trade_month = GetExpireDate(put_code)
-            print(('put合约：', put_code, put_trade_month))
+            print(('认沽合约：', put_code, put_trade_month))
             if g.trade_month == put_trade_month:
-                print('沽换月日虚实不变且已经是下月合约，无需更新otm')
+                print('认沽换月日虚实不变且已经是下月合约，无需更新otm')
             else:
                 GetPutOtm()
+    
+    # 最后重新检查otm合约是否需要调整
+    RecheckOtm()
+
     
 
 # 获取长节假日前一天
@@ -394,7 +489,7 @@ def Sell(op_type, code, volume):
     if code == pos_dict['op_code']:
         pos_dict['pos'] -= volume
         if pos_dict['pos'] == 0:
-            print('pos is empty now')
+            print('平仓成功，没有仓位了！')
             pos_dict['op_code'] = ''
 
             
@@ -405,7 +500,7 @@ def Cover(op_type, code, volume):
     if code == pos_dict['op_code']:
         pos_dict['pos'] += volume
         if pos_dict['pos'] == 0:
-            print('pos is empty now')
+            print('平仓成功，没有仓位了！')
             pos_dict['op_code'] = ''
 
             
@@ -568,7 +663,7 @@ def OnBar(context, code, bartype):
     
     # 没有初始仓位就先建仓，并跳过调仓逻辑
     if IsEmptyPos():
-        print('create pos')
+        print('开始初始建仓')
         SetInitPos()
         return
         
