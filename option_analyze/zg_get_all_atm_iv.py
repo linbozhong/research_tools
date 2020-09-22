@@ -22,6 +22,9 @@ def OnStart(context) :
     g.season = None
     g.next_season = None
     
+    g.last_trade_month = None
+    g.trade_month = None
+    g.next_month = None
     
     if context.accounts["option_backtest"].Login() :
         g.myacc = context.accounts["option_backtest"]
@@ -70,15 +73,37 @@ def GetOptionIv(option_code):
     return iv
 
 
+def GetSkewIv():
+    atm_call = GetAtmOptionContractByPos(g.underlying, 'now', 0, 0, g.trade_month)
+    atm_put = GetAtmOptionContractByPos(g.underlying, 'now', 0, 1, g.trade_month)
+    otm_call = GetAtmOptionContractByPos(g.underlying, 'now', -2, 0, g.trade_month)
+    otm_put = GetAtmOptionContractByPos(g.underlying, 'now', -2, 1, g.trade_month)
+    
+    atm_call_iv = GetOptionIv(atm_call)
+    atm_put_iv = GetOptionIv(atm_put)
+    
+    if atm_call == otm_call:
+        otm_call_iv = None
+    else:
+        otm_call_iv = GetOptionIv(otm_call)
+        
+    if atm_put == otm_put:
+        otm_put_iv = None
+    else:
+        otm_put_iv = GetOptionIv(otm_put)
+        
+    return atm_call_iv, atm_put_iv, otm_call_iv, otm_put_iv
+    
 def GetAtmIv(excute_date):
     atm_call = GetAtmOptionContractByPos(g.underlying, 'now', 0, 0, excute_date)
     atm_put = GetAtmOptionContractByPos(g.underlying, 'now', 0, 1, excute_date)
+    
     call_iv = GetOptionIv(atm_call)
     put_iv = GetOptionIv(atm_put)
     if call_iv is None or put_iv is None:
-        return None
+        return None, None, None
     else:
-        return (call_iv + put_iv) / 2
+        return (call_iv + put_iv) / 2, call_iv, put_iv
     
     
 def GetOptionClose(option_code):
@@ -98,6 +123,17 @@ def GetUnderlyingPrice(code):
 def GetAllMonth(code):
     g.month, g.next_month, g.season, g.next_season = GetOptionsLastDates(code)
 
+
+def CheckMonthMove(code):
+    now = GetCurrentTime().date()
+    g.last_trade_month = g.trade_month
+    cur_mon, next_mon, _ns, _nns = GetOptionsLastDates(code)
+    if cur_mon - now < timedelta(days=10):
+        g.trade_month = next_mon
+        g.next_month = None
+    else:
+        g.trade_month = cur_mon
+        g.next_month = next_mon    
         
         
 def OnBar(context, code, bartype):
@@ -105,25 +141,40 @@ def OnBar(context, code, bartype):
     GetUnderlyingPrice(code)
     
     # 更新月份
+    CheckMonthMove(code)
     GetAllMonth(code)
-#     CheckMonthMove(code)
     
-    # 输出波动率序列，仅用于验证
+    
+    # 输出波动率序列
     now = GetCurrentTime().date()
-    month_atm_iv = GetAtmIv(g.month)
-    next_month_atm_iv = GetAtmIv(g.next_month)
-    season_atm_iv = GetAtmIv(g.season)
-    next_season_atm_iv = GetAtmIv(g.next_season)
+    month_atm_iv, month_call, month_put = GetAtmIv(g.month)
+    next_month_atm_iv, next_month_call, next_month_put = GetAtmIv(g.next_month)
+    season_atm_iv, season_call, season_put = GetAtmIv(g.season)
+    next_season_atm_iv, next_season_call, next_season_put = GetAtmIv(g.next_season)
     
+    skew_atm_call, skew_atm_put, skew_otm_call, skew_otm_put = GetSkewIv()
 #     print(('cur iv', cur_atm_iv))
     
     d = dict()
     d["date"] = now.strftime('%Y%m%d')
     d["expire_date"] = g.month.strftime('%Y%m%d')
     d["month"] = month_atm_iv
+    d["month_call"] = month_call
+    d["month_put"] = month_put
     d["next_month"] = next_month_atm_iv
+    d["next_month_call"] = next_month_call
+    d["next_month_put"] = next_month_put
     d["season"] = season_atm_iv
+    d["season_call"] = season_call
+    d["season_put"] = season_put
     d["next_season"] = next_season_atm_iv
+    d["next_season_call"] = next_season_call
+    d["next_season_put"] = next_season_put
+    d["skew_atm_call"] = skew_atm_call
+    d["skew_atm_put"] = skew_atm_put
+    d["skew_otm_call"] = skew_otm_call
+    d["skew_otm_put"] = skew_otm_put
+
 #     print(d)
     g.atm_iv_list.append(d)
     
