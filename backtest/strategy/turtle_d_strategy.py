@@ -22,6 +22,9 @@ class TurtleDStrategy(CtaTemplate):
     stop_multiple = 10
     fixed_size = 1
 
+    can_long = True
+    can_short = True
+
     entry_up = 0
     entry_down = 0
     exit_up = 0
@@ -33,7 +36,7 @@ class TurtleDStrategy(CtaTemplate):
     long_stop = 0
     short_stop = 0
 
-    parameters = ["entry_window", "exit_window", "atr_window", "fixed_size", "stop_multiple"]
+    parameters = ["entry_window", "exit_window", "atr_window", "fixed_size", "stop_multiple", "can_long", "can_short"]
     variables = ["entry_up", "entry_down", "exit_up", "exit_down", "atr_value"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -94,8 +97,11 @@ class TurtleDStrategy(CtaTemplate):
             self.long_stop = 0
             self.short_stop = 0
 
-            self.send_buy_orders(self.entry_up)
-            self.send_short_orders(self.entry_down)
+            if self.can_long:
+                self.send_buy_orders(self.entry_up)
+
+            if self.can_short:
+                self.send_short_orders(self.entry_down)
         elif self.pos > 0:
             sell_price = max(self.long_stop, self.exit_down)
             self.sell(sell_price, abs(self.pos), True)

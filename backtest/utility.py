@@ -304,8 +304,11 @@ def get_output_folder(*args, root_default='result') -> PurePath:
 
 def comodity_to_vt_symbol(commodity: str, data_mode: str) -> str:
     exchange = future_basic_data.loc[commodity]['exchange']
-    digit = '888' if data_mode == 'main' else '99'
-    return f"{commodity.upper()}{digit}.{exchange}"
+    if exchange == 'SSE':
+        return f"{commodity}.{exchange}"
+    else:
+        digit = '888' if data_mode == 'main' else '99'
+        return f"{commodity.upper()}{digit}.{exchange}"
 
 
 def merge_duplicate_date(df):
